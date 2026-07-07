@@ -1,0 +1,240 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  clerkId       String   @unique
+  email         String   @unique
+  name          String?
+  phone         String?
+  avatar        String?
+  language      String   @default("en")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  profile       Profile?
+  conversations Conversation[]
+  complaints    Complaint[]
+  documents     Document[]
+  savedServices SavedService[]
+  notifications Notification[]
+  activityLogs  ActivityLog[]
+  analytics     Analytics[]
+
+  @@map("users")
+}
+
+model Profile {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  age         Int?
+  gender      String?
+  state       String?
+  district    String?
+  pincode     String?
+  category    String?   // General, SC, ST, OBC, EWS
+  income      String?   // annual income range
+  occupation  String?
+  education   String?
+  isDisabled  Boolean   @default(false)
+  isFarmer    Boolean   @default(false)
+  isStudent   Boolean   @default(false)
+  isSenior    Boolean   @default(false)
+  isWoman     Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("profiles")
+}
+
+model Conversation {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String?
+  context   String?   // JSON string of conversation context
+  intent    String?   // detected user intent
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  messages  Message[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String       // user | assistant
+  content        String       @db.Text
+  imageUrl       String?
+  metadata       String?      // JSON string for structured data
+  createdAt      DateTime     @default(now())
+
+  @@map("messages")
+}
+
+model Complaint {
+  id           String            @id @default(cuid())
+  userId       String
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trackingId   String            @unique
+  title        String
+  description  String            @db.Text
+  category     String            // Infrastructure, Sanitation, Water, Electricity, etc.
+  subCategory  String?
+  department   String
+  status       ComplaintStatus   @default(SUBMITTED)
+  priority     ComplaintPriority @default(MEDIUM)
+  imageUrl     String?
+  address      String?
+  state        String?
+  district     String?
+  pincode      String?
+  latitude     Float?
+  longitude    Float?
+  aiAnalysis   String?           @db.Text
+  resolvedAt   DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  updates      ComplaintUpdate[]
+
+  @@map("complaints")
+}
+
+enum ComplaintStatus {
+  SUBMITTED
+  ACKNOWLEDGED
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+  CLOSED
+}
+
+enum ComplaintPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model ComplaintUpdate {
+  id          String    @id @default(cuid())
+  complaintId String
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  status      String
+  comment     String
+  updatedBy   String    @default("System")
+  createdAt   DateTime  @default(now())
+
+  @@map("complaint_updates")
+}
+
+model GovernmentScheme {
+  id            String   @id @default(cuid())
+  name          String
+  nameHi        String?  // Hindi name
+  ministry      String
+  category      String   // Education, Health, Agriculture, Housing, etc.
+  description   String   @db.Text
+  benefits      String   @db.Text
+  eligibility   String   @db.Text
+  documents     String   @db.Text
+  howToApply    String   @db.Text
+  deadline      DateTime?
+  websiteUrl    String?
+  helplineNo    String?
+  isActive      Boolean  @default(true)
+  targetGender  String?  // All, Male, Female
+  targetAge     String?  // age range
+  targetState   String?  // All or specific state
+  incomeLimit   Int?
+  tags          String[] // searchable tags
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  savedBy       SavedService[]
+
+  @@map("government_schemes")
+}
+
+model SavedService {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schemeId  String
+  scheme    GovernmentScheme @relation(fields: [schemeId], references: [id], onDelete: Cascade)
+  notes     String?
+  createdAt DateTime         @default(now())
+
+  @@unique([userId, schemeId])
+  @@map("saved_services")
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  type        String   // PDF, Image, etc.
+  url         String
+  size        Int
+  summary     String?  @db.Text
+  keyPoints   String?  @db.Text
+  deadlines   String?  // JSON array
+  actions     String?  // JSON array
+  aiAnalyzed  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("documents")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   // complaint, scheme, document, system
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String
+  details   String?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@map("activity_logs")
+}
+
+model Analytics {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     String
+  data      String?  // JSON
+  sessionId String?
+  createdAt DateTime @default(now())
+
+  @@map("analytics")
+}
