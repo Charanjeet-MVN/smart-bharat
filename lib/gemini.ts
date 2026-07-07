@@ -2,10 +2,10 @@ import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/ge
 
 const apiKey = process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
 if (!apiKey) {
-  throw new Error("CRITICAL: Neither GOOGLE_GEMINI_API_KEY nor GEMINI_API_KEY is defined in environment variables.");
+  console.warn("WARNING: Neither GOOGLE_GEMINI_API_KEY nor GEMINI_API_KEY is defined in environment variables. Using placeholder for build phase.");
 }
 
-const genAI = new GoogleGenerativeAI(apiKey);
+const genAI = new GoogleGenerativeAI(apiKey || "placeholder-gemini-key-for-build");
 
 export const geminiModel = genAI.getGenerativeModel({
   model: 'gemini-2.5-flash',
