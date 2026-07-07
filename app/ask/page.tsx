@@ -68,6 +68,7 @@ export default function AskPage() {
           placeholder="E.g., What are the documents required and benefits of PM Kisan Samman Nidhi?"
           className="w-full text-slate-800 placeholder-slate-400 focus:outline-none resize-none text-base border-0 focus:ring-0 p-2"
           disabled={loading}
+          aria-label="Civic query input"
         />
         <div className="flex justify-between items-center border-t border-slate-100 pt-3 mt-2">
           <span className="text-xs text-slate-400 flex items-center gap-1">

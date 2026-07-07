@@ -27,8 +27,6 @@ You must respond with ONLY valid JSON in the following format (no markdown, no b
     const result = await geminiModel.generateContent(prompt);
     const text = result.response.text();
 
-    console.log("Raw Gemini Response Text:", text);
-
     // Make the JSON parsing defensive
     // Strip markdown code fences (```json and ```) using regex
     let cleanedText = text.trim();
