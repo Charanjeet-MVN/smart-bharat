@@ -1,9 +1,14 @@
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai'
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY!)
+const apiKey = process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+if (!apiKey) {
+  throw new Error("CRITICAL: Neither GOOGLE_GEMINI_API_KEY nor GEMINI_API_KEY is defined in environment variables.");
+}
+
+const genAI = new GoogleGenerativeAI(apiKey);
 
 export const geminiModel = genAI.getGenerativeModel({
-  model: 'gemini-1.5-pro',
+  model: 'gemini-2.5-flash',
   safetySettings: [
     {
       category: HarmCategory.HARM_CATEGORY_HARASSMENT,
@@ -23,7 +28,7 @@ export const geminiModel = genAI.getGenerativeModel({
 })
 
 export const geminiVisionModel = genAI.getGenerativeModel({
-  model: 'gemini-1.5-pro',
+  model: 'gemini-2.5-flash',
   generationConfig: {
     temperature: 0.4,
     topP: 0.9,
