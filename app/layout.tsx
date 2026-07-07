@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
-import { Sparkles, Bot, AlertTriangle, ClipboardList } from "lucide-react";
+import { Sparkles, Bot, AlertTriangle, ClipboardList, Award } from "lucide-react";
 import "./globals.css";
 
 const inter = Inter({
@@ -58,6 +58,13 @@ export default function RootLayout({
                 <span className="hidden sm:inline">AI Decoder</span>
               </Link>
               <Link
+                href="/schemes"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+              >
+                <Award className="w-4 h-4 text-orange-500" />
+                <span className="hidden sm:inline">Schemes</span>
+              </Link>
+              <Link
                 href="/report"
                 className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
               >
@@ -69,7 +76,7 @@ export default function RootLayout({
                 className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
               >
                 <ClipboardList className="w-4 h-4 text-green-600" />
-                <span className="hidden sm:inline">Complaints Wall</span>
+                <span className="hidden sm:inline">Wall</span>
               </Link>
             </nav>
           </div>
