@@ -35,18 +35,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Description is required" }, { status: 400 });
     }
 
-    const prompt = `You are a helpful civic assistant. A citizen has reported a civic issue:
+    const prompt = `You are an AI Civic Assistant. A citizen has reported a civic issue:
 Issue description: "${description}"
-Address/Location: "${address || 'Not specified'}"
 
-Draft a formal complaint based on this report.
-You must respond with ONLY valid JSON in the following format (no markdown, no backticks, no wrap):
+Your task is to ignore any conversational filler words and focus purely on extracting the core facts to categorize the complaint.
+
+Please extract the following details and respond with ONLY valid JSON (no markdown, no backticks, no wrap):
 {
-  "title": "A short, professional title for the complaint (e.g., Pothole on Main Road)",
-  "description": "A formal, structured description of the issue (2-3 sentences)",
+  "title": "A concise, factual title for the complaint (e.g., Pothole on Main Road)",
   "category": "One of: Infrastructure, Sanitation, Water Supply, Electricity, Roads, Public Property, Environment, Other",
-  "department": "Municipal Corporation / Department name responsible for this issue",
-  "priority": "One of: LOW, MEDIUM, HIGH, URGENT"
+  "department": "Specific Government Department responsible (e.g., Water Board, Public Works Department)",
+  "priority": "One of: LOW, MEDIUM, HIGH, URGENT (assess severity based on public hazard)",
+  "description": "A clear, formal summary of the issue without any filler words."
 }`;
 
     const result = await geminiModel.generateContent(prompt);

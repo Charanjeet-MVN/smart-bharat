@@ -15,7 +15,19 @@ export default function ReportPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description.trim() || !address.trim()) return;
+    
+    const trimmedDesc = description.trim();
+    const trimmedAddr = address.trim();
+
+    if (!trimmedDesc || !trimmedAddr) {
+      setError("Please fill out both the description and address.");
+      return;
+    }
+
+    if (trimmedDesc.length < 15) {
+      setError("Please provide a more detailed description (minimum 15 characters).");
+      return;
+    }
 
     setLoading(true);
     setError("");
@@ -25,7 +37,7 @@ export default function ReportPage() {
       const res = await fetch("/api/complaints", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description, address }),
+        body: JSON.stringify({ description: trimmedDesc, address: trimmedAddr }),
       });
 
       if (!res.ok) throw new Error("Failed to submit complaint. Please check your Supabase keys.");
