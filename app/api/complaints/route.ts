@@ -30,9 +30,69 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { description, address } = await request.json();
+    const { description, address, forceCreate } = await request.json();
     if (!description || description.trim().length === 0) {
       return NextResponse.json({ error: "Description is required" }, { status: 400 });
+    }
+
+    // Duplicate Check Logic
+    if (!forceCreate) {
+      // Fetch recent complaints to check against
+      const { data: recentComplaints } = await supabase
+        .from("complaints")
+        .select("id, title, description, address")
+        .order("createdAt", { ascending: false })
+        .limit(20);
+
+      // Try snake_case if camelCase fails (common Supabase quirk in this project)
+      let complaintsToCheck = recentComplaints;
+      if (!complaintsToCheck) {
+        const { data: recentComplaintsSnake } = await supabase
+          .from("complaints")
+          .select("id, title, description, address")
+          .order("created_at", { ascending: false })
+          .limit(20);
+        complaintsToCheck = recentComplaintsSnake;
+      }
+
+      if (complaintsToCheck && complaintsToCheck.length > 0) {
+        const dupPrompt = `You are a civic issue duplicate detector.
+A citizen is reporting a new issue:
+Description: "${description}"
+Address: "${address || 'Not specified'}"
+
+Here are recent complaints reported in the system:
+${JSON.stringify(complaintsToCheck)}
+
+Are any of these recent complaints highly likely to be the exact same issue at the same location as the new report? 
+Ignore minor differences in phrasing, but ensure the core issue and location match.
+
+Respond with ONLY valid JSON (no markdown):
+{
+  "isDuplicate": true or false,
+  "duplicateId": "if true, the ID of the matched complaint, else null",
+  "duplicateTitle": "if true, the title of the matched complaint, else null"
+}`;
+
+        const dupResult = await geminiModel.generateContent(dupPrompt);
+        let dupText = dupResult.response.text().trim();
+        dupText = dupText.replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/\s*```$/, "").trim();
+        
+        try {
+          const dupData = JSON.parse(dupText);
+          if (dupData.isDuplicate && dupData.duplicateId) {
+            return NextResponse.json({
+              isDuplicate: true,
+              duplicate: {
+                id: dupData.duplicateId,
+                title: dupData.duplicateTitle
+              }
+            }, { status: 409 });
+          }
+        } catch (e) {
+          console.error("Duplicate detection parse error:", e);
+        }
+      }
     }
 
     const prompt = `You are an AI Civic Assistant. A citizen has reported a civic issue:

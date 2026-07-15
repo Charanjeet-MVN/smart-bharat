@@ -12,10 +12,9 @@ export default function ReportPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [draft, setDraft] = useState<any>(null);
+  const [duplicateComplaint, setDuplicateComplaint] = useState<{ id: string, title: string } | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const submitComplaint = async (forceCreate = false) => {
     const trimmedDesc = description.trim();
     const trimmedAddr = address.trim();
 
@@ -37,14 +36,22 @@ export default function ReportPage() {
       const res = await fetch("/api/complaints", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: trimmedDesc, address: trimmedAddr }),
+        body: JSON.stringify({ description: trimmedDesc, address: trimmedAddr, forceCreate }),
       });
+
+      if (res.status === 409) {
+        const data = await res.json();
+        setDuplicateComplaint(data.duplicate);
+        setLoading(false);
+        return;
+      }
 
       if (!res.ok) throw new Error("Failed to submit complaint. Please check your Supabase keys.");
 
       const data = await res.json();
       setSuccess(true);
       setDraft(data.complaint);
+      setDuplicateComplaint(null);
       
       // Reset form
       setDescription("");
@@ -59,6 +66,11 @@ export default function ReportPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    submitComplaint(false);
   };
 
   return (
@@ -152,8 +164,43 @@ export default function ReportPage() {
             </div>
           )}
 
+          {/* Duplicate UI */}
+          {duplicateComplaint && !success && (
+            <div className="bg-amber-50 text-amber-900 p-6 rounded-2xl border border-amber-200 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex items-center gap-3 font-bold text-lg mb-2">
+                <AlertTriangle className="w-6 h-6 text-amber-600" />
+                Similar complaint found nearby.
+              </div>
+              <p className="text-amber-800 font-medium bg-white/60 p-3 rounded-xl border border-amber-100 mt-3 mb-5 italic shadow-inner">
+                "{duplicateComplaint.title}"
+              </p>
+              <p className="text-sm mb-4 font-semibold text-amber-800">
+                Would you like to support the existing complaint?
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  type="button"
+                  onClick={() => router.push("/wall")}
+                  className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-medium py-2.5 rounded-xl text-sm transition-colors shadow-sm text-center"
+                >
+                  Support
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDuplicateComplaint(null);
+                    submitComplaint(true);
+                  }}
+                  className="flex-1 bg-white hover:bg-amber-100 text-amber-900 font-medium py-2.5 rounded-xl border border-amber-300 text-sm transition-colors text-center"
+                >
+                  Create New
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Submit button */}
-          {!success && (
+          {!success && !duplicateComplaint && (
             <button
               type="submit"
               disabled={loading || !description.trim() || !address.trim()}
