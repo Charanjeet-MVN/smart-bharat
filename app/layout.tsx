@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
-import { Sparkles, Bot, AlertTriangle, ClipboardList, Award } from "lucide-react";
+import { Sparkles, Bot, AlertTriangle, ClipboardList, Award, UserCircle } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import "./globals.css";
 
@@ -80,9 +80,17 @@ export default function RootLayout({
                 <span className="hidden sm:inline">Wall</span>
               </Link>
               
-              <div className="w-px h-6 bg-slate-200 mx-1"></div>
+              <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block"></div>
               
               <NotificationCenter />
+
+              <Link
+                href="/profile"
+                className="flex items-center justify-center w-9 h-9 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition-colors ml-1"
+                title="Citizen Profile"
+              >
+                <UserCircle className="w-5 h-5" />
+              </Link>
             </nav>
           </div>
         </header>
