@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, MapPin, Send, Loader2, CheckCircle2 } from "lucide-react";
+import { AISuggestionsPanel } from "@/components/AISuggestionsPanel";
 
 export default function ReportPage() {
   const router = useRouter();
@@ -143,61 +144,36 @@ export default function ReportPage() {
               <p className="text-sm">
                 AI has drafted the complaint. Redirecting you to the Complaints Wall to view your listing...
               </p>
-              {draft && (
-                <div className="bg-white/80 p-4 rounded-xl border border-green-100 mt-2 space-y-1.5 font-sans">
-                  <div className="font-semibold text-slate-800">
-                    <span className="text-slate-400 text-xs uppercase tracking-wider block font-bold">Generated Title</span>
-                    {draft.title}
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 mt-2 pt-2 border-t border-slate-100 text-xs">
-                    <div>
-                      <span className="text-slate-400 font-bold uppercase tracking-wider block">Department</span>
-                      <span className="text-slate-700 font-medium">{draft.department}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 font-bold uppercase tracking-wider block">Severity</span>
-                      <span className="text-slate-700 font-medium">{draft.priority}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
-          {/* Duplicate UI */}
-          {duplicateComplaint && !success && (
-            <div className="bg-amber-50 text-amber-900 p-6 rounded-2xl border border-amber-200 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="flex items-center gap-3 font-bold text-lg mb-2">
-                <AlertTriangle className="w-6 h-6 text-amber-600" />
-                Similar complaint found nearby.
-              </div>
-              <p className="text-amber-800 font-medium bg-white/60 p-3 rounded-xl border border-amber-100 mt-3 mb-5 italic shadow-inner">
-                "{duplicateComplaint.title}"
-              </p>
-              <p className="text-sm mb-4 font-semibold text-amber-800">
-                Would you like to support the existing complaint?
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  type="button"
-                  onClick={() => router.push("/wall")}
-                  className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-medium py-2.5 rounded-xl text-sm transition-colors shadow-sm text-center"
-                >
-                  Support
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDuplicateComplaint(null);
-                    submitComplaint(true);
-                  }}
-                  className="flex-1 bg-white hover:bg-amber-100 text-amber-900 font-medium py-2.5 rounded-xl border border-amber-300 text-sm transition-colors text-center"
-                >
-                  Create New
-                </button>
-              </div>
-            </div>
+          {/* AI Suggestions Panel - Loading State */}
+          {loading && !success && !duplicateComplaint && (
+            <AISuggestionsPanel isLoading={true} />
           )}
+
+          {/* AI Suggestions Panel - Success State */}
+          {success && draft && (
+            <AISuggestionsPanel 
+              department={draft.department} 
+              priority={draft.priority} 
+              nextAction="Track the progress of this complaint on your dashboard."
+            />
+          )}
+
+          {/* AI Suggestions Panel - Duplicate State */}
+          {duplicateComplaint && !success && (
+            <AISuggestionsPanel 
+              similarIssue={duplicateComplaint}
+              onSupportSimilar={() => router.push("/wall")}
+              onCreateNew={() => {
+                setDuplicateComplaint(null);
+                submitComplaint(true);
+              }}
+            />
+          )}
+
+
 
           {/* Submit button */}
           {!success && !duplicateComplaint && (
