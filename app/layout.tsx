@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
 import { Sparkles, Bot, AlertTriangle, ClipboardList, Award } from "lucide-react";
+import { NotificationCenter } from "@/components/NotificationCenter";
 import "./globals.css";
 
 const inter = Inter({
@@ -78,6 +79,10 @@ export default function RootLayout({
                 <ClipboardList className="w-4 h-4 text-green-600" />
                 <span className="hidden sm:inline">Wall</span>
               </Link>
+              
+              <div className="w-px h-6 bg-slate-200 mx-1"></div>
+              
+              <NotificationCenter />
             </nav>
           </div>
         </header>
