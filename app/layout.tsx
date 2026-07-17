@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
-import { Sparkles, Bot, AlertTriangle, ClipboardList, Award, UserCircle } from "lucide-react";
+import { Sparkles, Bot, AlertTriangle, ClipboardList, Award, UserCircle, LineChart } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import "./globals.css";
 
@@ -64,6 +64,13 @@ export default function RootLayout({
               >
                 <Award className="w-4 h-4 text-orange-500" />
                 <span className="hidden sm:inline">Schemes</span>
+              </Link>
+              <Link
+                href="/insights"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+              >
+                <LineChart className="w-4 h-4 text-indigo-500" />
+                <span className="hidden sm:inline">Insights</span>
               </Link>
               <Link
                 href="/report"
