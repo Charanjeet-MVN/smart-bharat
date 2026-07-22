@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
-import { Sparkles, Bot, AlertTriangle, ClipboardList, Award, UserCircle, LineChart, Activity, Map } from "lucide-react";
+import { Sparkles, Bot, AlertTriangle, ClipboardList, Award, UserCircle, LineChart, Activity, Map, TrendingUp } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import "./globals.css";
 
@@ -99,6 +99,13 @@ export default function RootLayout({
               >
                 <Map className="w-4 h-4 text-emerald-500" />
                 <span className="hidden sm:inline">Heatmap</span>
+              </Link>
+              <Link
+                href="/performance"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+              >
+                <TrendingUp className="w-4 h-4 text-purple-500" />
+                <span className="hidden sm:inline">Performance</span>
               </Link>
               
               <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block"></div>
