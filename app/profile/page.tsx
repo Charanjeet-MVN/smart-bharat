@@ -31,7 +31,7 @@ const MOCK_ACHIEVEMENTS: Achievement[] = [
     id: "3",
     title: "5 Complaints Resolved",
     description: "Have 5 of your reported issues successfully resolved by the authorities.",
-    iconType: "check-circle" as any, // fallback to default
+    iconType: "star",
     progress: 5,
     maxProgress: 5,
     isUnlocked: true,

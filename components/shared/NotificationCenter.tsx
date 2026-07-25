@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { formatDistanceToNow } from "date-fns";
+import { useComplaints } from "@/hooks/useComplaints";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Bell, 
@@ -31,32 +32,8 @@ export interface Notification {
   isRead: boolean;
 }
 
-const MOCK_NOTIFICATIONS: Notification[] = [
-  {
-    id: "1",
-    type: "COMPLAINT_RESOLVED",
-    title: "Complaint Resolved",
-    description: "Your complaint 'Pothole on Main Road' has been resolved by the Public Works Department.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(), // 5 mins ago
-    isRead: false,
-  },
-  {
-    id: "2",
-    type: "COMPLAINT_STATUS_UPDATED",
-    title: "Status Updated",
-    description: "Your complaint 'Broken Streetlight' is now IN PROGRESS.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
-    isRead: false,
-  },
-  {
-    id: "3",
-    type: "SYSTEM_ANNOUNCEMENT",
-    title: "New AI Features",
-    description: "Check out the new AI duplicate detection feature when submitting complaints!",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
-    isRead: true,
-  },
-];
+
+
 
 const getNotificationConfig = (type: NotificationType) => {
   switch (type) {
@@ -77,8 +54,51 @@ const getNotificationConfig = (type: NotificationType) => {
 
 export function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+  const [readNotifs, setReadNotifs] = useState<Set<string>>(new Set());
+  const [deletedNotifs, setDeletedNotifs] = useState<Set<string>>(new Set());
   const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  const { complaints } = useComplaints();
+
+  // Generate notifications from real complaint data
+  const notifications = useMemo(() => {
+    if (!complaints || complaints.length === 0) return [];
+
+    const notifs: Notification[] = complaints.slice(0, 5).map((c, i) => {
+      const statusTypeMap: Record<string, NotificationType> = {
+        "SUBMITTED": "COMPLAINT_SUBMITTED",
+        "ACKNOWLEDGED": "COMPLAINT_ASSIGNED",
+        "IN_PROGRESS": "COMPLAINT_STATUS_UPDATED",
+        "RESOLVED": "COMPLAINT_RESOLVED",
+        "CLOSED": "COMPLAINT_RESOLVED",
+      };
+      const statusDescMap: Record<string, string> = {
+        "SUBMITTED": `Your complaint "${c.title}" has been submitted and is awaiting review.`,
+        "ACKNOWLEDGED": `Your complaint "${c.title}" has been acknowledged and assigned.`,
+        "IN_PROGRESS": `Your complaint "${c.title}" is now in progress.`,
+        "RESOLVED": `Your complaint "${c.title}" has been resolved.`,
+        "CLOSED": `Your complaint "${c.title}" has been closed.`,
+      };
+      const statusTitleMap: Record<string, string> = {
+        "SUBMITTED": "Complaint Submitted",
+        "ACKNOWLEDGED": "Complaint Assigned",
+        "IN_PROGRESS": "Status Updated",
+        "RESOLVED": "Complaint Resolved",
+        "CLOSED": "Complaint Closed",
+      };
+      const id = c.id || String(i);
+      return {
+        id,
+        type: statusTypeMap[c.status] || "COMPLAINT_SUBMITTED",
+        title: statusTitleMap[c.status] || "Complaint Update",
+        description: statusDescMap[c.status] || `Update for "${c.title}".`,
+        timestamp: c.updated_at || c.created_at || new Date().toISOString(),
+        isRead: readNotifs.has(id) || i >= 2,
+      };
+    });
+
+    return notifs.filter(n => !deletedNotifs.has(n.id));
+  }, [complaints, readNotifs, deletedNotifs]);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -93,17 +113,16 @@ export function NotificationCenter() {
   }, []);
 
   const markAsRead = (id: string) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === id ? { ...n, isRead: true } : n)
-    );
+    setReadNotifs(prev => new Set(prev).add(id));
   };
 
   const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    const allIds = notifications.map(n => n.id);
+    setReadNotifs(prev => new Set([...prev, ...allIds]));
   };
 
   const deleteNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+    setDeletedNotifs(prev => new Set(prev).add(id));
   };
 
   return (

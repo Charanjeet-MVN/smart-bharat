@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { formatDistanceToNow } from "date-fns";
+import { useComplaints } from "@/hooks/useComplaints";
 import { ClipboardList, RefreshCw, MapPin, Calendar, Building2, ShieldAlert, Loader2 } from "lucide-react";
 
 interface Complaint {
@@ -19,28 +21,7 @@ interface Complaint {
 }
 
 export default function WallPage() {
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const fetchComplaints = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/complaints");
-      if (!res.ok) throw new Error("Failed to load complaints board.");
-      const data = await res.json();
-      setComplaints(data);
-    } catch (err: any) {
-      setError(err.message || "Failed to load complaints. Ensure Supabase credentials are valid.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchComplaints();
-  }, []);
+  const { complaints, loading, error, refetch } = useComplaints();
 
   const getStatusColor = (status: string) => {
     switch (status.toUpperCase()) {
@@ -73,13 +54,7 @@ export default function WallPage() {
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return "N/A";
     try {
-      return new Date(dateStr).toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      return formatDistanceToNow(new Date(dateStr), { addSuffix: true });
     } catch {
       return dateStr;
     }
@@ -100,7 +75,7 @@ export default function WallPage() {
         </div>
 
         <button
-          onClick={fetchComplaints}
+          onClick={refetch}
           disabled={loading}
           className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold px-4 py-2.5 rounded-xl text-sm transition-all shadow-sm"
         >
@@ -139,8 +114,8 @@ export default function WallPage() {
       ) : (
         <div className="space-y-6">
           {complaints.map((complaint) => {
-            const tracking = complaint.trackingId || complaint.tracking_id || "COMP-UNKNOWN";
-            const date = complaint.createdAt || complaint.created_at;
+            const tracking = complaint.tracking_id || "COMP-UNKNOWN";
+            const date = complaint.created_at;
             
             return (
               <div

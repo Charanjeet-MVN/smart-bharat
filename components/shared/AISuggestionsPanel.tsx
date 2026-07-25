@@ -127,7 +127,7 @@ export function AISuggestionsPanel({
                 </div>
                 <div>
                   <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Similar Issue Found</p>
-                  <p className="text-sm font-medium text-amber-900 italic">"{similarIssue.title}"</p>
+                  <p className="text-sm font-medium text-amber-900 italic">&quot;{similarIssue.title}&quot;</p>
                 </div>
               </div>
               

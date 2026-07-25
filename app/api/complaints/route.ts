@@ -8,61 +8,51 @@ export async function GET() {
     const { data: complaints, error } = await supabase
       .from("complaints")
       .select("*")
-      .order("createdAt", { ascending: false });
+      .order("created_at", { ascending: false });
 
-    if (error) {
-      console.warn("Error fetching with camelCase, trying snake_case...", error);
-      const { data: complaintsSnake, error: errorSnake } = await supabase
-        .from("complaints")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (errorSnake) throw errorSnake;
-      return NextResponse.json(complaintsSnake);
-    }
-
-    return NextResponse.json(complaints);
-  } catch (error) {
+    if (error) throw error;
+    return NextResponse.json(complaints ?? []);
+  } catch (error: unknown) {
     console.error("Fetch complaints error:", error);
-    return NextResponse.json({ error: "Failed to fetch complaints" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch complaints. Please check your database configuration." },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { description, address, forceCreate } = await request.json();
-    if (!description || description.trim().length === 0) {
+    const body = await request.json();
+    const { description, address, forceCreate } = body;
+
+    if (!description || typeof description !== "string" || description.trim().length === 0) {
       return NextResponse.json({ error: "Description is required" }, { status: 400 });
     }
+    if (description.trim().length > 5000) {
+      return NextResponse.json({ error: "Description is too long (max 5000 characters)" }, { status: 400 });
+    }
+
+    const trimmedDesc = description.trim();
+    const trimmedAddr = typeof address === "string" ? address.trim() : "";
 
     // Duplicate Check Logic
     if (!forceCreate) {
-      // Fetch recent complaints to check against
       const { data: recentComplaints } = await supabase
         .from("complaints")
         .select("id, title, description, address")
-        .order("createdAt", { ascending: false })
+        .order("created_at", { ascending: false })
         .limit(20);
 
-      // Try snake_case if camelCase fails (common Supabase quirk in this project)
-      let complaintsToCheck = recentComplaints;
-      if (!complaintsToCheck) {
-        const { data: recentComplaintsSnake } = await supabase
-          .from("complaints")
-          .select("id, title, description, address")
-          .order("created_at", { ascending: false })
-          .limit(20);
-        complaintsToCheck = recentComplaintsSnake;
-      }
-
-      if (complaintsToCheck && complaintsToCheck.length > 0) {
-        const dupPrompt = `You are a civic issue duplicate detector.
+      if (recentComplaints && recentComplaints.length > 0) {
+        try {
+          const dupPrompt = `You are a civic issue duplicate detector.
 A citizen is reporting a new issue:
-Description: "${description}"
-Address: "${address || 'Not specified'}"
+Description: "${trimmedDesc}"
+Address: "${trimmedAddr || 'Not specified'}"
 
 Here are recent complaints reported in the system:
-${JSON.stringify(complaintsToCheck)}
+${JSON.stringify(recentComplaints)}
 
 Are any of these recent complaints highly likely to be the exact same issue at the same location as the new report? 
 Ignore minor differences in phrasing, but ensure the core issue and location match.
@@ -74,11 +64,10 @@ Respond with ONLY valid JSON (no markdown):
   "duplicateTitle": "if true, the title of the matched complaint, else null"
 }`;
 
-        const dupResult = await geminiModel.generateContent(dupPrompt);
-        let dupText = dupResult.response.text().trim();
-        dupText = dupText.replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/\s*```$/, "").trim();
-        
-        try {
+          const dupResult = await geminiModel.generateContent(dupPrompt);
+          let dupText = dupResult.response.text().trim();
+          dupText = dupText.replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/\s*```$/, "").trim();
+
           const dupData = JSON.parse(dupText);
           if (dupData.isDuplicate && dupData.duplicateId) {
             return NextResponse.json({
@@ -90,13 +79,15 @@ Respond with ONLY valid JSON (no markdown):
             }, { status: 409 });
           }
         } catch (e) {
-          console.error("Duplicate detection parse error:", e);
+          // Duplicate detection is best-effort — continue if it fails
+          console.warn("Duplicate detection failed, continuing with creation:", e);
         }
       }
     }
 
+    // AI Classification
     const prompt = `You are an AI Civic Assistant. A citizen has reported a civic issue:
-Issue description: "${description}"
+Issue description: "${trimmedDesc}"
 
 Your task is to ignore any conversational filler words and focus purely on extracting the core facts to categorize the complaint.
 
@@ -113,15 +104,7 @@ Please extract the following details and respond with ONLY valid JSON (no markdo
     const text = result.response.text();
 
     let cleanedText = text.trim();
-    if (cleanedText.startsWith("```json")) {
-      cleanedText = cleanedText.substring(7);
-    } else if (cleanedText.startsWith("```")) {
-      cleanedText = cleanedText.substring(3);
-    }
-    if (cleanedText.endsWith("```")) {
-      cleanedText = cleanedText.substring(0, cleanedText.length - 3);
-    }
-    cleanedText = cleanedText.trim();
+    cleanedText = cleanedText.replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/\s*```$/, "").trim();
 
     let draft;
     try {
@@ -129,26 +112,11 @@ Please extract the following details and respond with ONLY valid JSON (no markdo
     } catch {
       draft = {
         title: "Civic Issue Report",
-        description: description,
+        description: trimmedDesc,
         category: "Other",
         department: "Municipal Corporation",
         priority: "MEDIUM"
       };
-    }
-
-    const dummyUser = {
-      id: "dummy-user-id",
-      clerkId: "dummy-clerk-id",
-      email: "dummy@example.com",
-      name: "Anonymous Citizen"
-    };
-
-    const { error: userError } = await supabase
-      .from("users")
-      .upsert(dummyUser, { onConflict: "id" });
-      
-    if (userError) {
-      console.warn("Failed to upsert dummy user, the table might have different columns or not exist:", userError);
     }
 
     const trackingId = `COMP-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -156,17 +124,17 @@ Please extract the following details and respond with ONLY valid JSON (no markdo
 
     const complaintData = {
       id: complaintId,
-      userId: dummyUser.id,
-      trackingId,
+      user_id: "anonymous",
+      tracking_id: trackingId,
       title: draft.title,
       description: draft.description,
       category: draft.category,
       department: draft.department,
       status: "SUBMITTED",
       priority: draft.priority,
-      address: address || null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      address: trimmedAddr || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
     const { data, error: insertError } = await supabase
@@ -174,38 +142,14 @@ Please extract the following details and respond with ONLY valid JSON (no markdo
       .insert(complaintData)
       .select();
 
-    if (insertError) {
-      console.error("Primary insert failed, trying snake_case fallback...", insertError);
-      
-      const snakeCaseData = {
-        id: complaintId,
-        user_id: dummyUser.id,
-        tracking_id: trackingId,
-        title: draft.title,
-        description: draft.description,
-        category: draft.category,
-        department: draft.department,
-        status: "SUBMITTED",
-        priority: draft.priority,
-        address: address || null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
+    if (insertError) throw insertError;
 
-      const { data: dataSnake, error: insertErrorSnake } = await supabase
-        .from("complaints")
-        .insert(snakeCaseData)
-        .select();
-
-      if (insertErrorSnake) {
-        throw insertErrorSnake;
-      }
-      return NextResponse.json({ success: true, complaint: dataSnake[0] });
-    }
-
-    return NextResponse.json({ success: true, complaint: data[0] });
-  } catch (error) {
+    return NextResponse.json({ success: true, complaint: data?.[0] ?? complaintData });
+  } catch (error: unknown) {
     console.error("Post complaint error:", error);
-    return NextResponse.json({ error: "Failed to submit complaint" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to submit complaint. Please try again later." },
+      { status: 500 }
+    );
   }
 }

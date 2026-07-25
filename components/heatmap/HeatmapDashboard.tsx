@@ -2,10 +2,11 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { Filter, Search, Map as MapIcon, Loader2 } from "lucide-react";
+import { Filter, Map as MapIcon, Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import { HeatmapComplaint } from "./MapComponent";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
+import { useComplaints } from "@/hooks/useComplaints";
 
 // Dynamically import the map to avoid SSR issues with Leaflet
 const MapComponent = dynamic(() => import("./MapComponent"), {
@@ -18,50 +19,82 @@ const MapComponent = dynamic(() => import("./MapComponent"), {
   ),
 });
 
-// Generate some realistic mock data centered around New Delhi
-const generateMockData = (): HeatmapComplaint[] => {
-  const categories = ["Roads & Traffic", "Electricity", "Water Supply", "Sanitation"];
-  const departments = ["PWD", "Electricity Board", "Water Dept", "Municipal Corp"];
-  const priorities: ("High" | "Medium" | "Low")[] = ["High", "Medium", "Low"];
-  const statuses = ["Submitted", "In Progress", "Resolved"];
-  
-  const baseLat = 28.6139;
-  const baseLng = 77.2090;
-
-  return Array.from({ length: 45 }).map((_, i) => ({
-    id: `CMP-${9000 + i}`,
-    title: `Civic Issue reported in Zone ${Math.floor(Math.random() * 10) + 1}`,
-    category: categories[Math.floor(Math.random() * categories.length)],
-    department: departments[Math.floor(Math.random() * departments.length)],
-    priority: priorities[Math.floor(Math.random() * priorities.length)],
-    status: statuses[Math.floor(Math.random() * statuses.length)],
-    dateSubmitted: new Date(Date.now() - Math.random() * 1000 * 60 * 60 * 24 * 30),
-    // Scatter coordinates around base
-    lat: baseLat + (Math.random() - 0.5) * 0.1,
-    lng: baseLng + (Math.random() - 0.5) * 0.1,
-  }));
-};
-
-const MOCK_DATA = generateMockData();
+// Simple deterministic hash to generate approximate coordinates from address strings
+function hashToCoords(text: string, baseLat: number, baseLng: number): { lat: number; lng: number } {
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    hash = (hash << 5) - hash + text.charCodeAt(i);
+    hash |= 0;
+  }
+  const latOffset = ((hash % 1000) / 10000) * (hash > 0 ? 1 : -1);
+  const lngOffset = (((hash >> 8) % 1000) / 10000) * (hash > 0 ? -1 : 1);
+  return {
+    lat: baseLat + latOffset,
+    lng: baseLng + lngOffset,
+  };
+}
 
 export function HeatmapDashboard() {
   const [isClient, setIsClient] = useState(false);
+  const { complaints: rawComplaints, loading, error } = useComplaints();
   const [filterCategory, setFilterCategory] = useState("All");
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterPriority, setFilterPriority] = useState("All");
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsClient(true);
   }, []);
 
+  const complaints = useMemo(() => {
+    const baseLat = 28.6139; // New Delhi
+    const baseLng = 77.2090;
+
+    return rawComplaints.map((c) => {
+      const priorityMap: Record<string, "High" | "Medium" | "Low"> = {
+        "URGENT": "High",
+        "HIGH": "High",
+        "MEDIUM": "Medium",
+        "LOW": "Low"
+      };
+      const statusMap: Record<string, string> = {
+        "SUBMITTED": "Submitted",
+        "ACKNOWLEDGED": "Submitted",
+        "IN_PROGRESS": "In Progress",
+        "RESOLVED": "Resolved",
+        "CLOSED": "Resolved",
+        "REJECTED": "Resolved"
+      };
+      const coords = hashToCoords(c.address || c.id || "unknown", baseLat, baseLng);
+
+      return {
+        id: c.tracking_id || c.id,
+        title: c.title,
+        category: c.category,
+        department: c.department,
+        priority: priorityMap[c.priority] || "Medium",
+        status: statusMap[c.status] || "Submitted",
+        dateSubmitted: new Date(c.created_at),
+        lat: coords.lat,
+        lng: coords.lng,
+      };
+    });
+  }, [rawComplaints]);
+
   const filteredData = useMemo(() => {
-    return MOCK_DATA.filter(c => {
+    return complaints.filter(c => {
       if (filterCategory !== "All" && c.category !== filterCategory) return false;
       if (filterStatus !== "All" && c.status !== filterStatus) return false;
       if (filterPriority !== "All" && c.priority !== filterPriority) return false;
       return true;
     });
-  }, [filterCategory, filterStatus, filterPriority]);
+  }, [complaints, filterCategory, filterStatus, filterPriority]);
+
+  // Get unique categories from real data
+  const categories = useMemo(() => {
+    const set = new Set(complaints.map(c => c.category));
+    return Array.from(set).sort();
+  }, [complaints]);
 
   if (!isClient) {
     return (
@@ -71,8 +104,26 @@ export function HeatmapDashboard() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="h-[700px] w-full bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center p-12">
+        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
+          <AlertCircle className="w-8 h-8 text-red-400" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-800 mb-1">Failed to Load Map Data</h3>
+        <p className="text-slate-500 text-sm max-w-sm mb-4">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm px-4 py-2.5 rounded-xl transition-all"
+        >
+          <RefreshCw className="w-4 h-4" /> Retry
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <motion.div 
+    <motion.div
       className="h-[700px] w-full bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row overflow-hidden"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -83,28 +134,28 @@ export function HeatmapDashboard() {
         <div className="flex items-center gap-2 mb-6">
           <MapIcon className="w-5 h-5 text-blue-600" />
           <h2 className="text-lg font-bold text-slate-800">Map Controls</h2>
+          {loading && <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />}
         </div>
 
         <div className="space-y-5 flex-1">
           {/* Filters */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Category</label>
-            <select 
+            <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
               className="w-full p-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-slate-50"
             >
               <option value="All">All Categories</option>
-              <option value="Roads & Traffic">Roads & Traffic</option>
-              <option value="Electricity">Electricity</option>
-              <option value="Water Supply">Water Supply</option>
-              <option value="Sanitation">Sanitation</option>
+              {categories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
             </select>
           </div>
 
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status</label>
-            <select 
+            <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
               className="w-full p-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-slate-50"
@@ -118,7 +169,7 @@ export function HeatmapDashboard() {
 
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Priority</label>
-            <select 
+            <select
               value={filterPriority}
               onChange={(e) => setFilterPriority(e.target.value)}
               className="w-full p-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-slate-50"
@@ -128,6 +179,11 @@ export function HeatmapDashboard() {
               <option value="Medium">Medium</option>
               <option value="Low">Low</option>
             </select>
+          </div>
+
+          <div className="bg-slate-50 rounded-xl p-3 text-center">
+            <span className="text-sm font-bold text-slate-700">{filteredData.length}</span>
+            <span className="text-xs text-slate-500 ml-1">complaints on map</span>
           </div>
         </div>
 

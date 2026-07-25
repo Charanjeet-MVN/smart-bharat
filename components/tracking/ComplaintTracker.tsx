@@ -2,98 +2,68 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Search, Filter, Loader2, ListX } from "lucide-react";
+import { Search, Filter, ListX, RefreshCw } from "lucide-react";
 import { TrackerCard, ComplaintData } from "./TrackerCard";
+import { useComplaints } from "@/hooks/useComplaints";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Mock Data
-const MOCK_COMPLAINTS: ComplaintData[] = [
-  {
-    id: "CMP-8892",
-    title: "Large pothole on MG Road near Metro Station",
-    category: "Roads & Traffic",
-    department: "Public Works Department",
-    priority: "High",
-    status: "Work Started",
-    dateSubmitted: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3), // 3 days ago
-    expectedResolution: new Date(Date.now() + 1000 * 60 * 60 * 24 * 2), // 2 days from now
-    lastUpdated: new Date(Date.now() - 1000 * 60 * 60 * 5) // 5 hours ago
-  },
-  {
-    id: "CMP-8890",
-    title: "Streetlights not working in Sector 4",
-    category: "Electricity",
-    department: "Electricity Board",
-    priority: "Medium",
-    status: "Assigned to Department",
-    dateSubmitted: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5),
-    expectedResolution: new Date(Date.now() + 1000 * 60 * 60 * 24 * 1),
-    lastUpdated: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1)
-  },
-  {
-    id: "CMP-8875",
-    title: "Garbage pile-up near community park",
-    category: "Sanitation",
-    department: "Municipal Corporation",
-    priority: "High",
-    status: "Under Review",
-    dateSubmitted: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1),
-    expectedResolution: new Date(Date.now() + 1000 * 60 * 60 * 24 * 4),
-    lastUpdated: new Date(Date.now() - 1000 * 60 * 60 * 2)
-  },
-  {
-    id: "CMP-8840",
-    title: "Water pipe leakage in residential area",
-    category: "Water Supply",
-    department: "Water Department",
-    priority: "Low",
-    status: "Resolved",
-    dateSubmitted: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15),
-    lastUpdated: new Date(Date.now() - 1000 * 60 * 60 * 24 * 12)
-  }
-];
-
 export function ComplaintTracker() {
-  const [loading, setLoading] = useState(true);
+  const { complaints: rawComplaints, loading, error } = useComplaints();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [sortBy, setSortBy] = useState("Latest");
 
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1500);
-    return () => clearTimeout(timer);
-  }, []);
+  const complaints = useMemo(() => {
+    return rawComplaints.map(c => {
+      const statusMap: Record<string, string> = {
+        "SUBMITTED": "Submitted",
+        "ACKNOWLEDGED": "Under Review",
+        "IN_PROGRESS": "Work Started",
+        "RESOLVED": "Resolved",
+        "REJECTED": "Resolved",
+        "CLOSED": "Resolved"
+      };
+      return {
+        id: c.tracking_id || c.id,
+        title: c.title,
+        category: c.category,
+        department: c.department,
+        priority: (c.priority === "URGENT" || c.priority === "HIGH" ? "High" : c.priority === "LOW" ? "Low" : "Medium") as "High" | "Medium" | "Low",
+        status: (statusMap[c.status] || "Submitted") as "Submitted" | "Under Review" | "Work Started" | "Resolved",
+        dateSubmitted: new Date(c.created_at),
+        expectedResolution: c.updated_at ? new Date(new Date(c.created_at).getTime() + 7 * 24 * 60 * 60 * 1000) : undefined,
+        lastUpdated: c.updated_at ? new Date(c.updated_at) : new Date(c.created_at),
+      };
+    });
+  }, [rawComplaints]);
 
   const filteredAndSorted = useMemo(() => {
-    let result = [...MOCK_COMPLAINTS];
+    let result = [...complaints];
 
-    // Search filter
     if (searchQuery) {
       const lowerQ = searchQuery.toLowerCase();
-      result = result.filter(c => 
-        c.id.toLowerCase().includes(lowerQ) || 
+      result = result.filter(c =>
+        c.id.toLowerCase().includes(lowerQ) ||
         c.title.toLowerCase().includes(lowerQ)
       );
     }
 
-    // Status filter
     if (statusFilter !== "All") {
       result = result.filter(c => c.status === statusFilter || (statusFilter === "Active" && c.status !== "Resolved"));
     }
 
-    // Sort
     result.sort((a, b) => {
       if (sortBy === "Latest") return b.dateSubmitted.getTime() - a.dateSubmitted.getTime();
       if (sortBy === "Oldest") return a.dateSubmitted.getTime() - b.dateSubmitted.getTime();
       if (sortBy === "Priority") {
-        const priorityScore = { High: 3, Medium: 2, Low: 1 };
-        return priorityScore[b.priority] - priorityScore[a.priority];
+        const priorityScore: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
+        return (priorityScore[b.priority] ?? 0) - (priorityScore[a.priority] ?? 0);
       }
       return 0;
     });
 
     return result;
-  }, [searchQuery, statusFilter, sortBy]);
+  }, [complaints, searchQuery, statusFilter, sortBy]);
 
   if (loading) {
     return (
@@ -106,6 +76,24 @@ export function ComplaintTracker() {
         {[1, 2, 3].map((i) => (
           <Skeleton key={i} className="h-32 w-full rounded-2xl" />
         ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 p-12 flex flex-col items-center justify-center text-center shadow-sm">
+        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
+          <ListX className="w-8 h-8 text-red-400" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-800 mb-1">Failed to Load Complaints</h3>
+        <p className="text-slate-500 text-sm max-w-sm mb-4">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm px-4 py-2.5 rounded-xl transition-all"
+        >
+          <RefreshCw className="w-4 h-4" /> Retry
+        </button>
       </div>
     );
   }
@@ -137,7 +125,7 @@ export function ComplaintTracker() {
             className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-slate-50/50"
           />
         </div>
-        
+
         <div className="flex gap-2">
           <div className="relative shrink-0">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -174,11 +162,13 @@ export function ComplaintTracker() {
           </div>
           <h3 className="text-lg font-bold text-slate-800 mb-1">No Complaints Found</h3>
           <p className="text-slate-500 text-sm max-w-sm">
-            We couldn't find any complaints matching your current filters. Try adjusting your search criteria.
+            {complaints.length === 0
+              ? "No complaints have been submitted yet. Report a civic issue to see it tracked here."
+              : "We couldn't find any complaints matching your current filters. Try adjusting your search criteria."}
           </p>
         </div>
       ) : (
-        <motion.div 
+        <motion.div
           className="space-y-4"
           variants={container}
           initial="hidden"

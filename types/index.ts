@@ -187,3 +187,20 @@ export interface DashboardStats {
   conversations: number
   documents: number
 }
+
+export interface ComplaintRow {
+  id: string;
+  user_id?: string;
+  tracking_id?: string;
+  title: string;
+  description: string;
+  category: string;
+  department: string;
+  status: string;
+  priority: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  created_at: string;
+  updated_at?: string;
+}

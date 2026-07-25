@@ -1,102 +1,76 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { Filter, Search, TrendingUp } from "lucide-react";
+import { Filter, RefreshCw, AlertCircle } from "lucide-react";
 import { DepartmentCard, DepartmentData } from "./DepartmentCard";
 import { PerformanceCharts } from "./PerformanceCharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 
-const MOCK_DEPARTMENTS: DepartmentData[] = [
-  {
-    id: "water",
-    name: "Water Department",
-    totalComplaints: 1240,
-    pending: 120,
-    inProgress: 300,
-    resolved: 820,
-    resolutionRate: 66,
-    avgResolutionDays: 3.5,
-    satisfactionScore: 4.2,
-    highPriorityCount: 45,
-    aiInsight: "Water Department is resolving complaints 25% faster than last month. Leakage reports are down.",
-  },
-  {
-    id: "pwd",
-    name: "Public Works (PWD)",
-    totalComplaints: 2100,
-    pending: 450,
-    inProgress: 600,
-    resolved: 1050,
-    resolutionRate: 50,
-    avgResolutionDays: 8.2,
-    satisfactionScore: 3.4,
-    highPriorityCount: 120,
-    aiInsight: "Road Department has a high backlog of pending complaints, particularly regarding potholes in North Zone.",
-  },
-  {
-    id: "electricity",
-    name: "Electricity Board",
-    totalComplaints: 850,
-    pending: 40,
-    inProgress: 110,
-    resolved: 700,
-    resolutionRate: 82,
-    avgResolutionDays: 1.2,
-    satisfactionScore: 4.7,
-    highPriorityCount: 85,
-    aiInsight: "Electricity Department maintains the highest citizen satisfaction with rapid power restoration times.",
-  },
-  {
-    id: "sanitation",
-    name: "Sanitation & Waste",
-    totalComplaints: 1650,
-    pending: 200,
-    inProgress: 450,
-    resolved: 1000,
-    resolutionRate: 60,
-    avgResolutionDays: 4.0,
-    satisfactionScore: 3.8,
-    highPriorityCount: 60,
-    aiInsight: "Waste collection delays observed on weekends. Consider allocating more trucks to Zone 3.",
-  },
-  {
-    id: "parks",
-    name: "Parks & Recreation",
-    totalComplaints: 420,
-    pending: 50,
-    inProgress: 120,
-    resolved: 250,
-    resolutionRate: 59,
-    avgResolutionDays: 6.5,
-    satisfactionScore: 4.0,
-    highPriorityCount: 10,
-    aiInsight: "Steady performance. Tree pruning requests peak after heavy rain events.",
-  }
-];
+import { ComplaintRow } from "@/types";
+import { useComplaints } from "@/hooks/useComplaints";
 
-// Mock data for charts
-const LINE_CHART_DATA = [
-  { month: "Jan", rate: 58 },
-  { month: "Feb", rate: 60 },
-  { month: "Mar", rate: 57 },
-  { month: "Apr", rate: 64 },
-  { month: "May", rate: 69 },
-  { month: "Jun", rate: 71 },
-];
+function computeDepartmentData(complaints: ComplaintRow[]): DepartmentData[] {
+  const deptMap: Record<string, ComplaintRow[]> = {};
+  complaints.forEach(c => {
+    if (!deptMap[c.department]) deptMap[c.department] = [];
+    deptMap[c.department].push(c);
+  });
+
+  return Object.entries(deptMap).map(([name, items]) => {
+    const total = items.length;
+    const pending = items.filter(c => c.status === "SUBMITTED" || c.status === "ACKNOWLEDGED").length;
+    const inProgress = items.filter(c => c.status === "IN_PROGRESS").length;
+    const resolved = items.filter(c => c.status === "RESOLVED" || c.status === "CLOSED").length;
+    const rate = total > 0 ? Math.round((resolved / total) * 100) : 0;
+    const highPri = items.filter(c => c.priority === "HIGH" || c.priority === "URGENT").length;
+
+    // Average resolution days for resolved items
+    const resolvedItems = items.filter(c => (c.status === "RESOLVED" || c.status === "CLOSED") && c.updated_at);
+    let avgDays = 0;
+    if (resolvedItems.length > 0) {
+      const totalDays = resolvedItems.reduce((sum, c) => {
+        const diff = new Date(c.updated_at!).getTime() - new Date(c.created_at).getTime();
+        return sum + diff / (1000 * 60 * 60 * 24);
+      }, 0);
+      avgDays = Math.round((totalDays / resolvedItems.length) * 10) / 10;
+    }
+
+    // Simple satisfaction score estimate based on resolution rate and speed
+    const satisfaction = rate > 70 ? 4.5 : rate > 50 ? 3.8 : rate > 30 ? 3.2 : 2.5;
+
+    // AI insight based on metrics
+    let aiInsight = "";
+    if (rate > 70) aiInsight = `${name} has a strong resolution rate of ${rate}%. Keep up the great work.`;
+    else if (pending > inProgress && pending > 3) aiInsight = `${name} has a growing backlog of ${pending} pending complaints. Consider reallocating resources.`;
+    else if (highPri > 3) aiInsight = `${name} has ${highPri} high-priority complaints requiring immediate attention.`;
+    else aiInsight = `${name} is performing steadily with ${total} total complaints.`;
+
+    return {
+      id: name.toLowerCase().replace(/\s+/g, "-"),
+      name,
+      totalComplaints: total,
+      pending,
+      inProgress,
+      resolved,
+      resolutionRate: rate,
+      avgResolutionDays: avgDays || 5,
+      satisfactionScore: satisfaction,
+      highPriorityCount: highPri,
+      aiInsight,
+    };
+  });
+}
 
 export function PerformanceDashboard() {
-  const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState("Last 6 Months");
+  const { complaints, loading, error } = useComplaints();
   const [sortBy, setSortBy] = useState("Resolution Rate");
+  const [dateRange, setDateRange] = useState("All Time");
 
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1200);
-    return () => clearTimeout(timer);
-  }, []);
+  const departments = useMemo(() => computeDepartmentData(complaints), [complaints]);
 
   const sortedDepartments = useMemo(() => {
-    let sorted = [...MOCK_DEPARTMENTS];
+    const sorted = [...departments];
     if (sortBy === "Resolution Rate") {
       sorted.sort((a, b) => b.resolutionRate - a.resolutionRate);
     } else if (sortBy === "Most Pending") {
@@ -105,15 +79,27 @@ export function PerformanceDashboard() {
       sorted.sort((a, b) => a.avgResolutionDays - b.avgResolutionDays);
     }
     return sorted;
-  }, [sortBy]);
+  }, [departments, sortBy]);
 
   const barChartData = useMemo(() => {
-    return MOCK_DEPARTMENTS.map(d => ({ name: d.name.split(" ")[0], complaints: d.totalComplaints }));
-  }, []);
+    return departments.map(d => ({ name: d.name.split(" ")[0], complaints: d.totalComplaints }));
+  }, [departments]);
 
   const pieChartData = useMemo(() => {
-    return MOCK_DEPARTMENTS.map(d => ({ name: d.name.split(" ")[0], value: d.totalComplaints }));
-  }, []);
+    return departments.map(d => ({ name: d.name.split(" ")[0], value: d.totalComplaints }));
+  }, [departments]);
+
+  const lineChartData = useMemo(() => {
+    // Compute monthly complaint counts from real data
+    const monthCounts: Record<string, number> = {};
+    complaints.forEach(c => {
+      const date = new Date(c.created_at);
+      const key = date.toLocaleString("en-US", { month: "short" });
+      monthCounts[key] = (monthCounts[key] || 0) + 1;
+    });
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return months.filter(m => monthCounts[m]).map(m => ({ month: m, rate: monthCounts[m] || 0 }));
+  }, [complaints]);
 
   if (loading) {
     return (
@@ -124,6 +110,36 @@ export function PerformanceDashboard() {
           <Skeleton className="h-[400px] w-full rounded-2xl" />
           <Skeleton className="h-[400px] w-full rounded-2xl" />
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 p-12 flex flex-col items-center justify-center text-center shadow-sm">
+        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
+          <AlertCircle className="w-8 h-8 text-red-400" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-800 mb-1">Failed to Load Performance Data</h3>
+        <p className="text-slate-500 text-sm max-w-sm mb-4">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm px-4 py-2.5 rounded-xl transition-all"
+        >
+          <RefreshCw className="w-4 h-4" /> Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (departments.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 border-dashed p-12 flex flex-col items-center justify-center text-center">
+        <AlertCircle className="w-12 h-12 text-slate-300 mb-4" />
+        <h3 className="text-lg font-bold text-slate-800 mb-1">No Department Data</h3>
+        <p className="text-slate-500 text-sm max-w-sm">
+          Submit civic complaints to see department performance metrics appear here.
+        </p>
       </div>
     );
   }
@@ -153,10 +169,10 @@ export function PerformanceDashboard() {
               onChange={(e) => setDateRange(e.target.value)}
               className="pl-9 pr-8 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-slate-50/50 appearance-none font-medium text-slate-700 w-full"
             >
+              <option value="All Time">All Time</option>
               <option value="Last 30 Days">Last 30 Days</option>
               <option value="Last 3 Months">Last 3 Months</option>
               <option value="Last 6 Months">Last 6 Months</option>
-              <option value="This Year">This Year</option>
             </select>
           </div>
         </div>
@@ -181,11 +197,11 @@ export function PerformanceDashboard() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <PerformanceCharts barData={barChartData} lineData={LINE_CHART_DATA} pieData={pieChartData} />
+        <PerformanceCharts barData={barChartData} lineData={lineChartData} pieData={pieChartData} />
       </motion.div>
 
       {/* Department Cards */}
-      <motion.div 
+      <motion.div
         className="grid grid-cols-1 md:grid-cols-2 gap-6"
         variants={container}
         initial="hidden"

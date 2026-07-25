@@ -115,7 +115,7 @@ export function PerformanceCharts({ barData, lineData, pieData }: PerformanceCha
                 />
                 <RechartsTooltip 
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  formatter={(value: any) => [`${value}%`, 'Resolution Rate']}
+                  formatter={(value) => [`${value}%`, 'Resolution Rate']}
                 />
                 <Line 
                   type="monotone" 

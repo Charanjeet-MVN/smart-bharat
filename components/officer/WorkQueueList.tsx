@@ -33,7 +33,7 @@ export function WorkQueueList({
         </div>
         <h3 className="text-xl font-bold text-slate-800 mb-2">No Complaints Found</h3>
         <p className="text-slate-500 max-w-sm">
-          You don't have any complaints matching the current filters. Great job keeping the queue clean!
+          You don&apos;t have any complaints matching the current filters. Great job keeping the queue clean!
         </p>
       </div>
     );

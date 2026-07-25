@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
 import { Sparkles, Bot, AlertTriangle, ClipboardList, Award, UserCircle, LineChart, Activity, Map, TrendingUp, Briefcase } from "lucide-react";
-import { NotificationCenter } from "@/components/NotificationCenter";
+import { NotificationCenter } from "@/components/shared/NotificationCenter";
 import "./globals.css";
 
 const inter = Inter({

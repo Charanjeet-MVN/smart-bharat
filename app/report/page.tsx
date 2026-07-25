@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, MapPin, Send, Loader2, CheckCircle2 } from "lucide-react";
-import { AISuggestionsPanel } from "@/components/AISuggestionsPanel";
+import { AISuggestionsPanel } from "@/components/shared/AISuggestionsPanel";
 
 export default function ReportPage() {
   const router = useRouter();
@@ -12,7 +12,7 @@ export default function ReportPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [draft, setDraft] = useState<any>(null);
+  const [draft, setDraft] = useState<{department?: string; priority?: string} | null>(null);
   const [duplicateComplaint, setDuplicateComplaint] = useState<{ id: string, title: string } | null>(null);
 
   const submitComplaint = async (forceCreate = false) => {
@@ -62,8 +62,8 @@ export default function ReportPage() {
       setTimeout(() => {
         router.push("/wall");
       }, 3000);
-    } catch (err: any) {
-      setError(err.message || "Something went wrong.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setLoading(false);
     }

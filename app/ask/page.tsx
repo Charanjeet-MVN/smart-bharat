@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Bot, Sparkles, Send, Loader2, FileText, CheckCircle, ExternalLink, HelpCircle } from "lucide-react";
+import { Bot, Sparkles, Send, Loader2, FileText, CheckCircle, ExternalLink, HelpCircle, RefreshCw } from "lucide-react";
 
 interface DecodedCard {
   title: string;
@@ -19,31 +19,42 @@ export default function AskPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<DecodedCard | null>(null);
+  const [lastQuestion, setLastQuestion] = useState("");
 
-  const handleDecode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!question.trim()) return;
+  const handleDecode = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const q = question.trim() || lastQuestion.trim();
+    if (!q) return;
 
     setLoading(true);
     setError("");
     setResult(null);
+    setLastQuestion(q);
 
     try {
       const res = await fetch("/api/ai/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ question: q }),
       });
 
-      if (!res.ok) throw new Error("Failed to decode question. Please try again.");
-
       const data = await res.json();
+
+      if (!res.ok) {
+        // Use the specific error message from the API
+        throw new Error(data.error || "Something went wrong. Please try again.");
+      }
+
       setResult(data);
-    } catch (err: any) {
-      setError(err.message || "Something went wrong.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRetry = () => {
+    handleDecode();
   };
 
   return (
@@ -95,10 +106,17 @@ export default function AskPage() {
         </div>
       </form>
 
-      {/* Error message */}
+      {/* Error message with retry */}
       {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-xl border border-red-100 text-sm mb-8">
-          {error}
+        <div className="bg-red-50 text-red-700 p-4 rounded-xl border border-red-100 text-sm mb-8 flex items-start justify-between gap-3">
+          <span>{error}</span>
+          <button
+            onClick={handleRetry}
+            className="inline-flex items-center gap-1.5 bg-red-100 hover:bg-red-200 text-red-700 font-medium px-3 py-1.5 rounded-lg text-xs transition-all shrink-0"
+          >
+            <RefreshCw className="w-3 h-3" />
+            Retry
+          </button>
         </div>
       )}
 
@@ -126,7 +144,7 @@ export default function AskPage() {
                   <CheckCircle className="w-4 h-4 text-green-600" />
                   Eligibility Criteria
                 </h3>
-                <p className="text-slate-650 text-sm leading-relaxed">{result.eligibility}</p>
+                <p className="text-slate-600 text-sm leading-relaxed">{result.eligibility}</p>
               </div>
 
               <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
@@ -134,7 +152,7 @@ export default function AskPage() {
                   <Sparkles className="w-4 h-4 text-blue-600" />
                   Key Benefits
                 </h3>
-                <p className="text-slate-650 text-sm leading-relaxed">{result.benefits}</p>
+                <p className="text-slate-600 text-sm leading-relaxed">{result.benefits}</p>
               </div>
             </div>
 
@@ -147,7 +165,7 @@ export default function AskPage() {
               <div className="flex flex-wrap gap-2">
                 {result.documentsRequired && result.documentsRequired.length > 0 ? (
                   result.documentsRequired.map((doc, idx) => (
-                    <span key={idx} className="bg-amber-50 text-amber-850 px-3 py-1.5 rounded-xl text-xs font-medium border border-amber-100">
+                    <span key={idx} className="bg-amber-50 text-amber-800 px-3 py-1.5 rounded-xl text-xs font-medium border border-amber-100">
                       {doc}
                     </span>
                   ))
@@ -158,12 +176,12 @@ export default function AskPage() {
             </div>
 
             {/* How to Apply */}
-            <div className="border-t border-slate-150 pt-6">
+            <div className="border-t border-slate-100 pt-6">
               <h3 className="font-bold text-slate-900 text-sm tracking-wide uppercase flex items-center gap-2 mb-3">
                 <Send className="w-4 h-4 text-indigo-600" />
                 How to Apply / Steps
               </h3>
-              <div className="text-slate-650 text-sm leading-relaxed whitespace-pre-line bg-slate-50 p-5 rounded-2xl border border-slate-100 font-sans">
+              <div className="text-slate-600 text-sm leading-relaxed whitespace-pre-line bg-slate-50 p-5 rounded-2xl border border-slate-100 font-sans">
                 {result.howToApply}
               </div>
             </div>

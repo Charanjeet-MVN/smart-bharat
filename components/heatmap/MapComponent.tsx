@@ -6,9 +6,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { MapPin, Calendar, Clock, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
-import { createRoot } from "react-dom/client";
 
-// Mock Data
 export interface HeatmapComplaint {
   id: string;
   title: string;
@@ -55,7 +53,7 @@ export default function MapComponent({ complaints }: MapComponentProps) {
   
   // Fix for default Leaflet icons in Next.js (though we use custom icons)
   useEffect(() => {
-    delete (L.Icon.Default.prototype as any)._getIconUrl;
+    delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
     L.Icon.Default.mergeOptions({
       iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
       iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",

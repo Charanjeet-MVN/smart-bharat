@@ -1,90 +1,63 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Filter } from "lucide-react";
+import { Filter, RefreshCw, AlertCircle } from "lucide-react";
 import { OfficerStats, OfficerStatsData } from "./OfficerStats";
 import { WorkQueueList } from "./WorkQueueList";
 import { OfficerComplaint } from "./ComplaintActionCard";
 import { parseISO, isPast } from "date-fns";
-
-const MOCK_COMPLAINTS: OfficerComplaint[] = [
-  {
-    id: "COMP-9281",
-    title: "Major Pothole on MG Road",
-    citizenName: "R*** K***",
-    category: "Roads",
-    department: "PWD",
-    priority: "High",
-    status: "Pending",
-    location: "MG Road, Zone 2",
-    submissionDate: "2026-07-20T10:00:00Z",
-    dueDate: "2026-07-22T10:00:00Z"
-  },
-  {
-    id: "COMP-9285",
-    title: "Streetlight not working",
-    citizenName: "A*** S***",
-    category: "Electricity",
-    department: "Electricity Board",
-    priority: "Medium",
-    status: "In Progress",
-    location: "Sector 4, Phase 1",
-    submissionDate: "2026-07-18T14:30:00Z",
-    dueDate: "2026-07-21T14:30:00Z"
-  },
-  {
-    id: "COMP-9302",
-    title: "Garbage not collected for 3 days",
-    citizenName: "M*** P***",
-    category: "Sanitation",
-    department: "Waste Management",
-    priority: "High",
-    status: "Pending",
-    location: "Green Avenue, Block C",
-    submissionDate: "2026-07-21T09:15:00Z",
-    dueDate: "2026-07-23T09:15:00Z"
-  },
-  {
-    id: "COMP-9310",
-    title: "Broken Park Bench",
-    citizenName: "S*** D***",
-    category: "Parks",
-    department: "Recreation",
-    priority: "Low",
-    status: "Resolved",
-    location: "Central Park",
-    submissionDate: "2026-07-15T11:00:00Z",
-    dueDate: "2026-07-25T11:00:00Z"
-  }
-];
+import { useComplaints } from "@/hooks/useComplaints";
 
 export function OfficerDashboard() {
-  const [complaints, setComplaints] = useState<OfficerComplaint[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { complaints: rawComplaints, loading, error } = useComplaints();
 
   // Filters
   const [statusFilter, setStatusFilter] = useState("All");
   const [priorityFilter, setPriorityFilter] = useState("All");
   const [sortBy, setSortBy] = useState("Highest Priority");
 
-  useEffect(() => {
-    // Simulate fetch
-    const timer = setTimeout(() => {
-      setComplaints(MOCK_COMPLAINTS);
-      setLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, []);
+  const complaints = useMemo(() => {
+    return rawComplaints.map((c) => {
+      const statusMap: Record<string, "Pending" | "In Progress" | "Resolved"> = {
+        "SUBMITTED": "Pending",
+        "ACKNOWLEDGED": "Pending",
+        "IN_PROGRESS": "In Progress",
+        "RESOLVED": "Resolved",
+        "REJECTED": "Resolved",
+        "CLOSED": "Resolved"
+      };
+      const priorityMap: Record<string, "High" | "Medium" | "Low"> = {
+        "URGENT": "High",
+        "HIGH": "High",
+        "MEDIUM": "Medium",
+        "LOW": "Low"
+      };
+      const createdAt = c.created_at || new Date().toISOString();
+      const dueDate = new Date(new Date(createdAt).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      return {
+        id: c.tracking_id || c.id,
+        title: c.title,
+        citizenName: "Citizen",
+        category: c.category,
+        department: c.department,
+        priority: priorityMap[c.priority] || "Medium",
+        status: statusMap[c.status] || "Pending",
+        location: c.address || "Not specified",
+        submissionDate: createdAt,
+        dueDate: dueDate,
+      };
+    });
+  }, [rawComplaints]);
 
   const stats: OfficerStatsData = useMemo(() => {
-    let assigned = complaints.length;
-    let pending = complaints.filter(c => c.status === "Pending").length;
-    let inProgress = complaints.filter(c => c.status === "In Progress").length;
-    let completed = complaints.filter(c => c.status === "Resolved").length;
-    let overdue = complaints.filter(c => isPast(parseISO(c.dueDate)) && c.status !== "Resolved").length;
-    
+    const pending = complaints.filter(c => c.status === "Pending").length;
+    const inProgress = complaints.filter(c => c.status === "In Progress").length;
+    const completed = complaints.filter(c => c.status === "Resolved").length;
+    const overdue = complaints.filter(c => isPast(parseISO(c.dueDate)) && c.status !== "Resolved").length;
+
     return {
-      assignedToday: 2, // Mock value
+      assignedToday: complaints.length,
       pending,
       inProgress,
       completedToday: completed,
@@ -94,7 +67,7 @@ export function OfficerDashboard() {
 
   const filteredAndSortedComplaints = useMemo(() => {
     let result = [...complaints];
-    
+
     if (statusFilter !== "All") {
       result = result.filter(c => c.status === statusFilter);
     }
@@ -104,8 +77,8 @@ export function OfficerDashboard() {
 
     result.sort((a, b) => {
       if (sortBy === "Highest Priority") {
-        const pMap: any = { High: 3, Medium: 2, Low: 1 };
-        return pMap[b.priority] - pMap[a.priority];
+        const pMap: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
+        return (pMap[b.priority] ?? 0) - (pMap[a.priority] ?? 0);
       } else if (sortBy === "Oldest First") {
         return new Date(a.submissionDate).getTime() - new Date(b.submissionDate).getTime();
       } else if (sortBy === "Nearest Due Date") {
@@ -118,16 +91,28 @@ export function OfficerDashboard() {
   }, [complaints, statusFilter, priorityFilter, sortBy]);
 
   const handleAction = (id: string, action: string) => {
-    // Simulate action being recorded
-    console.log(`Action "${action}" applied to complaint ${id}.`);
-    
-    // Optimistic UI Update for specific actions
-    if (action === "Accept") {
-      setComplaints(prev => prev.map(c => c.id === id ? { ...c, status: "In Progress" } : c));
-    } else if (action === "Mark Resolved") {
-      setComplaints(prev => prev.map(c => c.id === id ? { ...c, status: "Resolved" } : c));
-    }
+    // In a real app, this would call an API to update the complaint status
+    // and then call refetch() from useComplaints. For now, it's just a stub.
+    console.log(`Action ${action} triggered for complaint ${id}`);
   };
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 p-12 flex flex-col items-center justify-center text-center shadow-sm">
+        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
+          <AlertCircle className="w-8 h-8 text-red-400" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-800 mb-1">Failed to Load Work Queue</h3>
+        <p className="text-slate-500 text-sm max-w-sm mb-4">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm px-4 py-2.5 rounded-xl transition-all"
+        >
+          <RefreshCw className="w-4 h-4" /> Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -139,7 +124,7 @@ export function OfficerDashboard() {
           <div className="flex items-center gap-2 text-slate-500 font-medium text-sm mr-2">
             <Filter className="w-4 h-4" /> Filters
           </div>
-          <select 
+          <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
             className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-slate-50 min-w-[120px]"
@@ -150,7 +135,7 @@ export function OfficerDashboard() {
             <option value="Resolved">Resolved</option>
           </select>
 
-          <select 
+          <select
             value={priorityFilter}
             onChange={e => setPriorityFilter(e.target.value)}
             className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-slate-50 min-w-[120px]"
@@ -177,10 +162,10 @@ export function OfficerDashboard() {
       </div>
 
       {/* List */}
-      <WorkQueueList 
-        complaints={filteredAndSortedComplaints} 
-        loading={loading} 
-        onAction={handleAction} 
+      <WorkQueueList
+        complaints={filteredAndSortedComplaints}
+        loading={loading}
+        onAction={handleAction}
       />
     </div>
   );

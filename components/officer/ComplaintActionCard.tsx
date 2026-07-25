@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
   MapPin, Calendar, Clock, AlertTriangle, 
-  CheckCircle2, PlayCircle, Image as ImageIcon, 
+  CheckCircle2, Image as ImageIcon, 
   MessageSquare, UserCircle, AlertCircle
 } from "lucide-react";
 import { format, isPast, parseISO } from "date-fns";

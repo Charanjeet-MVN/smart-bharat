@@ -4,8 +4,8 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { 
-  Building2, CheckCircle2, Clock, AlertTriangle, 
-  Sparkles, Star, TrendingUp, AlertCircle
+  Building2, CheckCircle2, Clock,
+  Sparkles, Star, AlertCircle
 } from "lucide-react";
 
 export interface DepartmentData {

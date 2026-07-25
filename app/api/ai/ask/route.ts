@@ -4,12 +4,15 @@ import { geminiModel } from "@/lib/gemini";
 export async function POST(request: NextRequest) {
   try {
     const { question } = await request.json();
-    if (!question || question.trim().length === 0) {
+    if (!question || typeof question !== "string" || question.trim().length === 0) {
       return NextResponse.json({ error: "Question is required" }, { status: 400 });
+    }
+    if (question.trim().length > 2000) {
+      return NextResponse.json({ error: "Question is too long (max 2000 characters)" }, { status: 400 });
     }
 
     const prompt = `You are SmartSeva, an AI Civic Copilot. A citizen has asked the following question:
-"${question}"
+"${question.trim()}"
 
 Decode this question into a structured JSON card containing information about relevant government services, schemes, guidelines, or procedures.
 You must respond with ONLY valid JSON in the following format (no markdown, no backticks, no wrap):
@@ -27,8 +30,6 @@ You must respond with ONLY valid JSON in the following format (no markdown, no b
     const result = await geminiModel.generateContent(prompt);
     const text = result.response.text();
 
-    // Make the JSON parsing defensive
-    // Strip markdown code fences (```json and ```) using regex
     let cleanedText = text.trim();
     cleanedText = cleanedText.replace(/^```json\s*/i, "");
     cleanedText = cleanedText.replace(/^```\s*/, "");
@@ -38,22 +39,33 @@ You must respond with ONLY valid JSON in the following format (no markdown, no b
     try {
       const cardData = JSON.parse(cleanedText);
       return NextResponse.json(cardData);
-    } catch (parseError: any) {
-      console.error("JSON parsing error on Gemini output:", parseError);
-      console.error("Failed text content:", cleanedText);
+    } catch {
+      console.error("JSON parsing error on Gemini output. Raw:", text);
       return NextResponse.json(
-        { 
-          error: "Failed to parse Gemini output as JSON", 
-          details: parseError.message, 
-          rawText: text 
-        }, 
-        { status: 500 }
+        { error: "The AI response could not be parsed. Please try rephrasing your question." },
+        { status: 502 }
       );
     }
-  } catch (error: any) {
-    console.error("Ask API raw error:", error);
+  } catch (error: unknown) {
+    console.error("Ask API error:", error);
+
+    // Provide specific user-facing error messages
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("429") || message.includes("quota") || message.includes("rate")) {
+      return NextResponse.json(
+        { error: "The AI service is currently busy. Please wait a moment and try again." },
+        { status: 429 }
+      );
+    }
+    if (message.includes("API key") || message.includes("401") || message.includes("403")) {
+      return NextResponse.json(
+        { error: "AI service configuration error. Please contact the administrator." },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "Failed to decode question", details: error.message }, 
+      { error: "Unable to process your question right now. Please try again." },
       { status: 500 }
     );
   }

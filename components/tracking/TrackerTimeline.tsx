@@ -1,6 +1,5 @@
 import React from "react";
 import { Check, Clock, Play, Inbox, Briefcase, CheckCircle2 } from "lucide-react";
-import { motion } from "framer-motion";
 
 export type TrackingStage = 
   | "Submitted"
