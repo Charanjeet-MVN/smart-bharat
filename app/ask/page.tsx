@@ -40,12 +40,12 @@ export default function AskPage() {
 
       const data = await res.json();
 
-      if (!res.ok) {
+      if (!res.ok || data.success === false) {
         // Use the specific error message from the API
         throw new Error(data.error || "Something went wrong. Please try again.");
       }
 
-      setResult(data);
+      setResult(data.data);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {

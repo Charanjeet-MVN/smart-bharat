@@ -47,11 +47,12 @@ export default function ReportPage() {
         return;
       }
 
-      if (!res.ok) throw new Error("Failed to submit complaint. Please check your Supabase keys.");
-
       const data = await res.json();
+      
+      if (!res.ok || data.success === false) throw new Error(data.error || "Failed to submit complaint. Please check your Supabase keys.");
+
       setSuccess(true);
-      setDraft(data.complaint);
+      setDraft(data.data);
       setDuplicateComplaint(null);
       
       // Reset form

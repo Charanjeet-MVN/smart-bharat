@@ -17,10 +17,14 @@ export function useComplaints() {
         if (!res.ok) {
           throw new Error("Failed to load complaints");
         }
-        const data = await res.json();
+        const result = await res.json();
+        
+        if (result.success === false) {
+          throw new Error(result.error || "Failed to load complaints");
+        }
         
         if (mounted) {
-          setComplaints(data || []);
+          setComplaints(result.data || []);
         }
       } catch (err: unknown) {
         if (mounted) {
@@ -47,8 +51,9 @@ export function useComplaints() {
         if (!res.ok) throw new Error("Failed to load complaints");
         return res.json();
       })
-      .then(data => {
-        setComplaints(data || []);
+      .then(result => {
+        if (result.success === false) throw new Error(result.error || "Failed to load complaints");
+        setComplaints(result.data || []);
         setError(null);
       })
       .catch(err => {

@@ -1,21 +1,43 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { geminiModel } from "@/lib/gemini";
+import { z } from "zod";
+import { standardResponse, errorResponse, withRetry, aiAskCache } from "@/lib/api-utils";
+import crypto from "crypto";
+
+const AskSchema = z.object({
+  question: z.string().min(3, "Question must be at least 3 characters").max(2000, "Question is too long (max 2000 characters)"),
+});
 
 export async function POST(request: NextRequest) {
+  console.info("[API] POST /api/ai/ask initiated");
   try {
-    const { question } = await request.json();
-    if (!question || typeof question !== "string" || question.trim().length === 0) {
-      return NextResponse.json({ error: "Question is required" }, { status: 400 });
+    const body = await request.json();
+    
+    // 1. Validation
+    const parseResult = AskSchema.safeParse(body);
+    if (!parseResult.success) {
+      return errorResponse(parseResult.error.issues[0].message, 400);
     }
-    if (question.trim().length > 2000) {
-      return NextResponse.json({ error: "Question is too long (max 2000 characters)" }, { status: 400 });
+    
+    const { question } = parseResult.data;
+    const trimmedQuestion = question.trim();
+
+    // 2. Check Cache
+    // Hash the question for a cache key
+    const cacheKey = crypto.createHash('sha256').update(trimmedQuestion.toLowerCase()).digest('hex');
+    const cachedResponse = aiAskCache.get(cacheKey);
+    
+    if (cachedResponse) {
+      console.info(`[API] Cache hit for question: ${trimmedQuestion.substring(0, 30)}...`);
+      return standardResponse(cachedResponse);
     }
 
+    // 3. AI Processing with Retry
     const prompt = `You are SmartSeva, an AI Civic Copilot. A citizen has asked the following question:
-"${question.trim()}"
+"${trimmedQuestion}"
 
 Decode this question into a structured JSON card containing information about relevant government services, schemes, guidelines, or procedures.
-You must respond with ONLY valid JSON in the following format (no markdown, no backticks, no wrap):
+You must respond with ONLY valid JSON in the following format (no markdown):
 {
   "title": "Concise and descriptive title of the service, scheme, or process",
   "description": "Short explanation of what it is",
@@ -27,46 +49,38 @@ You must respond with ONLY valid JSON in the following format (no markdown, no b
   "officialUrl": "Official government website link (if known, else 'https://www.india.gov.in')"
 }`;
 
-    const result = await geminiModel.generateContent(prompt);
+    // Use withRetry to gracefully handle 429 quota/rate limit errors
+    const result = await withRetry(() => geminiModel.generateContent(prompt), 3, 1000);
     const text = result.response.text();
 
     let cleanedText = text.trim();
-    cleanedText = cleanedText.replace(/^```json\s*/i, "");
-    cleanedText = cleanedText.replace(/^```\s*/, "");
-    cleanedText = cleanedText.replace(/\s*```$/, "");
-    cleanedText = cleanedText.trim();
+    cleanedText = cleanedText.replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/\s*```$/, "").trim();
 
+    let cardData;
     try {
-      const cardData = JSON.parse(cleanedText);
-      return NextResponse.json(cardData);
+      cardData = JSON.parse(cleanedText);
     } catch {
-      console.error("JSON parsing error on Gemini output. Raw:", text);
-      return NextResponse.json(
-        { error: "The AI response could not be parsed. Please try rephrasing your question." },
-        { status: 502 }
-      );
+      console.error("[API] JSON parsing error on Gemini output.");
+      return errorResponse("The AI response could not be parsed. Please try rephrasing your question.", 502);
     }
+
+    // 4. Save to Cache
+    aiAskCache.set(cacheKey, cardData);
+
+    console.info("[API] Successfully generated AI response");
+    return standardResponse(cardData);
   } catch (error: unknown) {
-    console.error("Ask API error:", error);
+    console.error("[API] Ask API error:", error);
 
     // Provide specific user-facing error messages
     const message = error instanceof Error ? error.message : String(error);
     if (message.includes("429") || message.includes("quota") || message.includes("rate")) {
-      return NextResponse.json(
-        { error: "The AI service is currently busy. Please wait a moment and try again." },
-        { status: 429 }
-      );
+      return errorResponse("The AI service is currently busy. Please wait a moment and try again.", 429);
     }
     if (message.includes("API key") || message.includes("401") || message.includes("403")) {
-      return NextResponse.json(
-        { error: "AI service configuration error. Please contact the administrator." },
-        { status: 503 }
-      );
+      return errorResponse("AI service configuration error. Please contact the administrator.", 503);
     }
 
-    return NextResponse.json(
-      { error: "Unable to process your question right now. Please try again." },
-      { status: 500 }
-    );
+    return errorResponse("Unable to process your question right now. Please try again.", 500);
   }
 }
