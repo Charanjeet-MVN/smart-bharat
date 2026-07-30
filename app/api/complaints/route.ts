@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { geminiModel } from "@/lib/gemini";
 import crypto from "crypto";
 import { z } from "zod";
-import { standardResponse, errorResponse, withRetry } from "@/lib/api-utils";
+import { standardResponse, errorResponse, withRetry, sanitizeInput, submitComplaintRateLimiter } from "@/lib/api-utils";
 
 const CreateComplaintSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters long").max(5000, "Description is too long (max 5000 characters)"),
@@ -84,6 +84,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   console.info("[API] POST /api/complaints initiated");
   try {
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    if (submitComplaintRateLimiter.isRateLimited(ip)) {
+      return errorResponse("Too many complaints submitted. Please try again later.", 429);
+    }
+
     const body = await request.json();
     
     // 1. Zod Validation
@@ -93,8 +98,8 @@ export async function POST(request: NextRequest) {
     }
     
     const { description, address, forceCreate } = parseResult.data;
-    const trimmedDesc = description.trim();
-    const trimmedAddr = address ? address.trim() : "";
+    const trimmedDesc = sanitizeInput(description);
+    const trimmedAddr = sanitizeInput(address || "");
 
     // 2. Duplicate Check Logic (Optimized to select only required fields)
     if (!forceCreate) {

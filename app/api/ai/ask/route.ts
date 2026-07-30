@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { geminiModel } from "@/lib/gemini";
 import { z } from "zod";
-import { standardResponse, errorResponse, withRetry, aiAskCache } from "@/lib/api-utils";
+import { standardResponse, errorResponse, withRetry, aiAskCache, sanitizeInput, askAiRateLimiter } from "@/lib/api-utils";
 import crypto from "crypto";
 
 const AskSchema = z.object({
@@ -11,6 +11,11 @@ const AskSchema = z.object({
 export async function POST(request: NextRequest) {
   console.info("[API] POST /api/ai/ask initiated");
   try {
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    if (askAiRateLimiter.isRateLimited(ip)) {
+      return errorResponse("Too many questions asked. Please wait a minute and try again.", 429);
+    }
+
     const body = await request.json();
     
     // 1. Validation
@@ -20,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
     
     const { question } = parseResult.data;
-    const trimmedQuestion = question.trim();
+    const trimmedQuestion = sanitizeInput(question);
 
     // 2. Check Cache
     // Hash the question for a cache key

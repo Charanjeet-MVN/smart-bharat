@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import Link from "next/link";
 import { Sparkles, Bot, AlertTriangle, ClipboardList, Award, UserCircle, LineChart, Activity, Map, TrendingUp, Briefcase } from "lucide-react";
 import { NotificationCenter } from "@/components/shared/NotificationCenter";
+import { ClerkProvider, SignInButton, UserButton } from "@clerk/nextjs";
+import { auth } from "@clerk/nextjs/server";
 import "./globals.css";
 
 const inter = Inter({
@@ -26,14 +28,18 @@ export const metadata: Metadata = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const authObj = await auth();
+  const userId = authObj.userId;
+
   return (
-    <html lang="en" className={inter.variable}>
-      <body className="min-h-screen bg-[#f8fafc] font-inter antialiased flex flex-col">
+    <ClerkProvider>
+      <html lang="en" className={inter.variable}>
+        <body className="min-h-screen bg-[#f8fafc] font-inter antialiased flex flex-col">
         {/* Header */}
         <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 py-4">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
@@ -119,13 +125,17 @@ export default function RootLayout({
               
               <NotificationCenter />
 
-              <Link
-                href="/profile"
-                className="flex items-center justify-center w-9 h-9 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition-colors ml-1"
-                title="Citizen Profile"
-              >
-                <UserCircle className="w-5 h-5" />
-              </Link>
+              <div className="ml-2 flex items-center justify-center">
+                {userId ? (
+                  <UserButton />
+                ) : (
+                  <SignInButton mode="modal">
+                    <button className="flex items-center justify-center w-9 h-9 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition-colors" title="Citizen Login">
+                      <UserCircle className="w-5 h-5" />
+                    </button>
+                  </SignInButton>
+                )}
+              </div>
             </nav>
           </div>
         </header>
@@ -136,5 +146,6 @@ export default function RootLayout({
         </main>
       </body>
     </html>
+    </ClerkProvider>
   );
 }

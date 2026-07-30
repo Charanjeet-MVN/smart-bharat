@@ -92,8 +92,8 @@ export function OfficerDashboard() {
 
   const handleAction = (id: string, action: string) => {
     // In a real app, this would call an API to update the complaint status
-    // and then call refetch() from useComplaints. For now, it's just a stub.
-    console.log(`Action ${action} triggered for complaint ${id}`);
+    // and then call refetch() from useComplaints.
+    // Implement action logic safely without exposing details in console
   };
 
   if (error) {

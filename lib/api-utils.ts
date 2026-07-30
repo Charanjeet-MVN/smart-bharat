@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import DOMPurify from "isomorphic-dompurify";
 
 export interface ApiResponse<T = unknown> {
   success: boolean;
@@ -119,3 +120,46 @@ export class LightweightCache<T> {
 
 // Singleton instances for shared caches across API routes (in-memory per serverless worker)
 export const aiAskCache = new LightweightCache<unknown>(3600); // 1 hour for generic questions
+
+/**
+ * Basic in-memory rate limiter using token bucket logic
+ */
+export class RateLimiter {
+  private requests: Map<string, number[]>;
+  private limit: number;
+  private windowMs: number;
+
+  constructor(limit: number, windowSeconds: number) {
+    this.requests = new Map();
+    this.limit = limit;
+    this.windowMs = windowSeconds * 1000;
+  }
+
+  isRateLimited(ip: string): boolean {
+    const now = Date.now();
+    const windowStart = now - this.windowMs;
+    
+    let timestamps = this.requests.get(ip) || [];
+    timestamps = timestamps.filter(t => t > windowStart);
+    
+    if (timestamps.length >= this.limit) {
+      return true;
+    }
+    
+    timestamps.push(now);
+    this.requests.set(ip, timestamps);
+    return false;
+  }
+}
+
+// Global rate limiters (in-memory limits for simplistic protection)
+export const askAiRateLimiter = new RateLimiter(5, 60); // 5 requests per minute
+export const submitComplaintRateLimiter = new RateLimiter(3, 60); // 3 requests per minute
+
+/**
+ * Sanitize untrusted user input using DOMPurify
+ */
+export function sanitizeInput(input: string): string {
+  if (!input) return "";
+  return DOMPurify.sanitize(input, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }).trim();
+}
