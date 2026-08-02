@@ -8,15 +8,68 @@ const AskSchema = z.object({
   question: z.string().min(3, "Question must be at least 3 characters").max(2000, "Question is too long (max 2000 characters)"),
 });
 
-/**
- * Generates dynamic, question-specific civic information tailored precisely to the user's query
- */
-function generateQuestionSpecificCard(q: string) {
-  const queryLower = q.toLowerCase();
+export interface DecodedCardResponse {
+  isInvalid?: boolean;
+  title: string;
+  description: string;
+  category: string;
+  benefits: string;
+  eligibility: string;
+  documentsRequired: string[];
+  howToApply: string;
+  officialUrl: string;
+}
 
-  // 1. PM Kisan / Farmer Schemes
+/**
+ * Domain-aware civic inquiry validator and context-aware fallback engine
+ */
+function generateQuestionSpecificCard(q: string): DecodedCardResponse {
+  const queryLower = q.toLowerCase().trim();
+
+  // 0. Nonsense / Fictional / Non-Civic Intent Detection
+  const nonsenseKeywords = [
+    "iron man", "ironman", "superman", "batman", "avengers", "superhero", "spiderman",
+    "fly to mars", "space travel", "magic", "vampire", "hogwarts", "joke", "funny",
+    "alien", "godzilla", "zombie", "time travel", "pokemon", "crypto trading"
+  ];
+
+  if (nonsenseKeywords.some(kw => queryLower.includes(kw))) {
+    return {
+      isInvalid: true,
+      title: "Not a Recognized Government Service",
+      description: `The query "${q}" does not relate to any recognized Indian government scheme, public service, or civic procedure.`,
+      category: "Unrecognized Query",
+      benefits: "Fictional or non-civic topics cannot be processed by the AI Civic Decoder.",
+      eligibility: "N/A — Fictional / Non-Government Query",
+      documentsRequired: [],
+      howToApply: "Please ask about official Indian government services like PM Kisan, Ayushman Bharat, Passport Renewal, Driving License, Aadhaar Card, Voter ID, or Ration Card.",
+      officialUrl: "https://www.india.gov.in"
+    };
+  }
+
+  // 1. Ayushman Bharat / Health Cover
+  if (queryLower.includes("ayushman") || queryLower.includes("health card") || queryLower.includes("pmjay") || queryLower.includes("health insurance")) {
+    return {
+      isInvalid: false,
+      title: "Ayushman Bharat Pradhan Mantri Jan Arogya Yojana (PM-JAY)",
+      description: "National health protection scheme providing cashless secondary and tertiary healthcare hospitalization cover across India.",
+      category: "Health & Family Welfare",
+      benefits: "Cashless health cover up to ₹5,000,000 per family per year across 29,000+ empaneled public and private hospitals.",
+      eligibility: "Bottom 40% vulnerable families identified under SECC 2011 data, occupational categories, and senior citizens aged 70+.",
+      documentsRequired: [
+        "Aadhaar Card (linked with Mobile Number)",
+        "Ration Card / Family ID",
+        "PM-JAY Letter / Ayushman Golden Card (if previously issued)"
+      ],
+      howToApply: "1. Visit pmjay.gov.in and click 'Am I Eligible' using your phone number & Ration Card ID.\n2. Visit any empaneled hospital and meet the 'Ayushman Mitra'.\n3. Complete biometric e-KYC to get your instant e-Ayushman Card.",
+      officialUrl: "https://pmjay.gov.in"
+    };
+  }
+
+  // 2. PM Kisan / Farmer Schemes
   if (queryLower.includes("kisan") || queryLower.includes("farmer") || queryLower.includes("pmkisan") || queryLower.includes("agriculture")) {
     return {
+      isInvalid: false,
       title: "PM-KISAN Samman Nidhi Scheme & Documentation",
       description: "Direct income support scheme by the Ministry of Agriculture for eligible landholding farmer families across India.",
       category: "Agriculture & Farmer Welfare",
@@ -33,9 +86,10 @@ function generateQuestionSpecificCard(q: string) {
     };
   }
 
-  // 2. Passport / Passport Renewal / Re-issue
+  // 3. Passport / Passport Renewal / Re-issue
   if (queryLower.includes("passport") || queryLower.includes("visa") || queryLower.includes("psk")) {
     return {
+      isInvalid: false,
       title: "Indian Passport Application & Renewal Guide",
       description: "Official procedures, documentation, and appointment booking for fresh issuance, renewal, or re-issue of Indian Passports.",
       category: "Travel & International Identity",
@@ -52,9 +106,10 @@ function generateQuestionSpecificCard(q: string) {
     };
   }
 
-  // 3. Aadhaar Card / UIDAI
+  // 4. Aadhaar Card / UIDAI
   if (queryLower.includes("aadhaar") || queryLower.includes("aadhar") || queryLower.includes("uidai")) {
     return {
+      isInvalid: false,
       title: "Aadhaar Card Enrolment & Detail Update Guide",
       description: "Step-by-step guidance for fresh Aadhaar enrolment, biometric updates, and demographic changes (address/mobile/name).",
       category: "National Identity & Governance",
@@ -71,9 +126,10 @@ function generateQuestionSpecificCard(q: string) {
     };
   }
 
-  // 4. Driving License / Parivahan / RTO
+  // 5. Driving License / Parivahan / RTO
   if (queryLower.includes("driving") || queryLower.includes("license") || queryLower.includes("licence") || queryLower.includes("parivahan") || queryLower.includes("rto")) {
     return {
+      isInvalid: false,
       title: "Driving License Application & Renewal (Parivahan)",
       description: "Official procedures for obtaining Learner's License, Permanent Driving License, or renewal through Parivahan Sewa.",
       category: "Transport & Road Safety",
@@ -90,51 +146,57 @@ function generateQuestionSpecificCard(q: string) {
     };
   }
 
-  // 5. PAN Card / NSDL / UTIITSL
-  if (queryLower.includes("pan") || queryLower.includes("nsdl") || queryLower.includes("income tax")) {
+  // 6. Ambiguous / Financial & Social Assistance Queries
+  if (queryLower.includes("financial help") || queryLower.includes("need help") || queryLower.includes("need money") || queryLower.includes("medical assistance") || queryLower.includes("poor") || queryLower.includes("loan") || queryLower.includes("pension") || queryLower.includes("subsidy")) {
     return {
-      title: "Permanent Account Number (PAN Card) Application",
-      description: "Instant paperless PAN card issuance and correction services via e-KYC for tax and financial purposes.",
-      category: "Finance & Taxation",
-      benefits: "Essential 10-digit unique alphanumeric identifier required for tax filing, banking, and high-value transactions.",
-      eligibility: "Any individual, minor, NRI, company, or entity operating or residing in India.",
+      isInvalid: false,
+      title: "Government Welfare & Financial Assistance Schemes",
+      description: "Unified guidance for government income support, healthcare aid, micro-finance credit, and social security programs.",
+      category: "Financial Assistance & Social Welfare",
+      benefits: "Access to PM Jan Dhan Yojana (zero-balance bank accounts), PM Mudra Loans (up to ₹10 Lakh collateral-free credit), and Ayushman Bharat health cover.",
+      eligibility: "Indian citizens, low-income households, small business owners, unorganized workers, and senior citizens.",
       documentsRequired: [
-        "Aadhaar Card (for e-KYC instant processing)",
-        "Proof of Identity (Voter ID / Passport / Driving License)",
-        "Proof of Address (Utility Bill / Bank Passbook)",
-        "Proof of Date of Birth"
+        "Aadhaar Card (linked with Mobile)",
+        "Bank Passbook Details",
+        "Income Certificate / BPL Ration Card",
+        "Recent Passport-size Photographs"
       ],
-      howToApply: "1. Access the NSDL (Protean) or UTIITSL official online portal.\n2. Select Form 49A (for Indian Citizens) and choose e-KYC authentication.\n3. Authenticate using Aadhaar OTP for paperless submission.\n4. e-PAN will be emailed within 24 hours, and physical card dispatched by post.",
-      officialUrl: "https://www.onlineservices.nsdl.com"
+      howToApply: "1. For Health Aid: Check eligibility for Ayushman Bharat at pmjay.gov.in.\n2. For Business Credit/Loan: Apply for PM Mudra Loan at mudra.org.in or any public sector bank.\n3. For Unified Welfare: Search eligible schemes tailored to your income profile at myscheme.gov.in.",
+      officialUrl: "https://www.myscheme.gov.in"
     };
   }
 
-  // 6. Voter ID / Election Commission / EPIC
-  if (queryLower.includes("voter") || queryLower.includes("epic") || queryLower.includes("election") || queryLower.includes("vote")) {
+  // 7. Check for general civic keywords
+  const civicKeywords = [
+    "help", "apply", "document", "scheme", "card", "certificate", "gov", "government",
+    "bill", "water", "electricity", "tax", "police", "complaint", "pension", "school",
+    "subsidy", "service", "ration", "form", "register", "status", "fee", "online", "office"
+  ];
+
+  const hasCivicIntent = civicKeywords.some(kw => queryLower.includes(kw));
+
+  if (!hasCivicIntent) {
     return {
-      title: "Voter ID Card Registration (NVSP / ECI)",
-      description: "Form 6 application for new voter registration and Electoral Photo Identity Card (EPIC) issuance.",
-      category: "Electoral & Democratic Rights",
-      benefits: "Official voter identification card conferring constitutional voting rights in elections.",
-      eligibility: "Indian citizens who have reached 18 years of age on the qualifying date.",
-      documentsRequired: [
-        "Recent Passport Size Photograph",
-        "Proof of Age (Birth Certificate / Aadhaar / PAN Card)",
-        "Proof of Address (Utility Bill / Bank Passbook / Ration Card)"
-      ],
-      howToApply: "1. Visit voters.eci.gov.in or download the Voter Helpline Mobile App.\n2. Fill out Form 6 for new voter enrolment.\n3. Upload photo and self-attested copies of age & address proof.\n4. Booth Level Officer (BLO) will perform field verification before issuing EPIC card.",
-      officialUrl: "https://voters.eci.gov.in"
+      isInvalid: true,
+      title: "Not a Recognized Government Service",
+      description: `The query "${q}" does not appear to relate to a recognized Indian government scheme, service, or civic procedure.`,
+      category: "Unrecognized Query",
+      benefits: "Non-civic queries cannot be decoded into government service cards.",
+      eligibility: "N/A",
+      documentsRequired: [],
+      howToApply: "Please ask a specific question about Indian government services such as Ayushman Bharat, PM Kisan, Passport Renewal, Driving License, Aadhaar, Voter ID, or Ration Cards.",
+      officialUrl: "https://www.india.gov.in"
     };
   }
 
-  // 7. Dynamic Fallback for any specific query
-  // Extract key terms from the question for custom response
+  // If question contains general civic keywords, format dynamic card
   const cleanQ = q.replace(/[^\w\s]/gi, '').trim();
   const words = cleanQ.split(/\s+/).filter(w => w.length > 3);
   const mainSubject = words.slice(0, 4).join(" ") || cleanQ;
 
   return {
-    title: `Civic Information: ${mainSubject.toUpperCase()}`,
+    isInvalid: false,
+    title: `Civic Service: ${mainSubject.toUpperCase()}`,
     description: `Official guidelines, documentation, and procedural details regarding "${q}".`,
     category: "Government Services & Public Policy",
     benefits: "Direct access to official government procedures, welfare schemes, and citizen entitlements.",
@@ -179,26 +241,45 @@ export async function POST(request: NextRequest) {
       return standardResponse(cachedResponse);
     }
 
-    // 3. AI Processing with Retry
-    const prompt = `You are SmartSeva, an AI Civic Copilot. A citizen has asked the following specific question:
+    // 3. AI Processing with Retry & Strict Prompt Instructions
+    const prompt = `You are SmartSeva, an AI Civic Copilot for Smart Bharat (Government of India citizen services).
+
+A citizen has asked the following specific question:
 "${trimmedQuestion}"
 
-Decode this specific question into a structured JSON card containing accurate information about relevant government services, schemes, guidelines, or procedures.
-You must respond with ONLY valid JSON in the following format (no markdown codeblocks):
+CRITICAL SYSTEM INSTRUCTION:
+1. First evaluate if "${trimmedQuestion}" is a real, recognized Indian government scheme, service, subsidy, identity document, driving license, passport, tax, civic complaint, or public welfare procedure.
+2. IF IT IS A NONSENSE, FICTIONAL, OR NON-CIVIC QUESTION (e.g. "How do I become Iron Man?", "Tell me a joke", "How to fly to Mars"):
+Return ONLY valid JSON (no markdown):
 {
-  "title": "Concise and descriptive title specific to ${trimmedQuestion}",
-  "description": "Short explanation addressing ${trimmedQuestion}",
-  "category": "Category (e.g., Identity, Health, Agriculture, Education, Transport)",
-  "benefits": "Key benefits or why this is important for this specific topic",
-  "eligibility": "Who is eligible for this specific service/scheme",
-  "documentsRequired": ["Document 1 specific to this topic", "Document 2 specific to this topic"],
-  "howToApply": "Step-by-step instructions on how to apply or what to do for this topic",
-  "officialUrl": "Official government website link for this service"
+  "isInvalid": true,
+  "title": "Not a Recognized Government Service",
+  "description": "The query does not relate to a recognized Indian government scheme, service, or civic procedure.",
+  "category": "Unrecognized Query",
+  "benefits": "N/A - Non-civic query",
+  "eligibility": "N/A - Fictional or non-government query",
+  "documentsRequired": [],
+  "howToApply": "Please ask about official Indian government services like PM Kisan, Ayushman Bharat, Passport Renewal, Driving License, Aadhaar, Voter ID, or Ration Card.",
+  "officialUrl": "https://www.india.gov.in"
+}
+
+3. IF IT IS A VALID GOVERNMENT SCHEME OR CIVIC SERVICE (e.g. PM Kisan, Ayushman Bharat, Passport, Aadhaar, Driving License, etc.):
+Return ONLY valid JSON (no markdown):
+{
+  "isInvalid": false,
+  "title": "Concise factual title of the scheme or service",
+  "description": "Clear factual summary of the scheme or service",
+  "category": "Category (e.g. Health, Agriculture, Identity, Transport, Education)",
+  "benefits": "Key benefits and entitlements",
+  "eligibility": "Specific eligibility criteria for Indian citizens",
+  "documentsRequired": ["Document 1", "Document 2"],
+  "howToApply": "Step-by-step application instructions and portal details",
+  "officialUrl": "Official government website link"
 }`;
 
     console.info(`[DEBUG 2] Prompt sent to Gemini includes question: "${trimmedQuestion}"`);
 
-    let cardData: unknown = null;
+    let cardData: DecodedCardResponse | null = null;
 
     try {
       const result = await withRetry(() => geminiModel.generateContent(prompt), 2, 800);
@@ -209,13 +290,14 @@ You must respond with ONLY valid JSON in the following format (no markdown codeb
       let cleanedText = text.trim();
       cleanedText = cleanedText.replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/\s*```$/, "").trim();
 
-      cardData = JSON.parse(cleanedText);
+      const parsed = JSON.parse(cleanedText);
+      cardData = parsed;
       console.info(`[DEBUG 4] Successfully parsed Gemini output for: "${trimmedQuestion}"`);
     } catch (geminiError: unknown) {
       console.warn(`[DEBUG 5] Gemini API notice for "${trimmedQuestion}":`, geminiError instanceof Error ? geminiError.message : geminiError);
-      console.info(`[DEBUG 6] Synthesizing question-specific response card for "${trimmedQuestion}"`);
+      console.info(`[DEBUG 6] Executing domain-aware intent validator for "${trimmedQuestion}"`);
       
-      // Generate unique, question-specific card dynamically
+      // Execute domain-aware intent validator
       cardData = generateQuestionSpecificCard(trimmedQuestion);
     }
 

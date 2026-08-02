@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Bot, Sparkles, Send, Loader2, FileText, CheckCircle, ExternalLink, HelpCircle, RefreshCw } from "lucide-react";
+import { Bot, Sparkles, Send, Loader2, FileText, CheckCircle, ExternalLink, HelpCircle, RefreshCw, AlertTriangle } from "lucide-react";
 
 interface DecodedCard {
+  isInvalid?: boolean;
   title: string;
   description: string;
   category: string;
@@ -41,7 +42,6 @@ export default function AskPage() {
       const data = await res.json();
 
       if (!res.ok || data.success === false) {
-        // Use the specific error message from the API
         throw new Error(data.error || "Something went wrong. Please try again.");
       }
 
@@ -123,85 +123,126 @@ export default function AskPage() {
       {/* Decoded Card */}
       {result && (
         <div className="bg-white rounded-3xl shadow-xl shadow-slate-100/50 border border-slate-200 overflow-hidden transition-all duration-300 transform hover:shadow-2xl">
-          {/* Card Header */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-850 p-6 sm:p-8 text-white relative">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-blue-200 uppercase tracking-wider mb-3">
-              <Sparkles className="w-3.5 h-3.5" />
-              {result.category || "Civic Service"}
-            </span>
-            <h2 className="text-2xl font-bold sm:text-3xl leading-tight">{result.title}</h2>
-            <p className="mt-3 text-slate-300 font-normal leading-relaxed text-sm sm:text-base">
-              {result.description}
-            </p>
-          </div>
+          {/* Unrecognized / Invalid Query Rendering */}
+          {result.isInvalid ? (
+            <div className="p-8 bg-amber-50/50 border border-amber-200/60 rounded-3xl">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-amber-100 text-amber-700 rounded-2xl shrink-0">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 uppercase tracking-wider mb-2">
+                    {result.category || "Unrecognized Query"}
+                  </span>
+                  <h2 className="text-xl font-bold text-slate-900">{result.title}</h2>
+                  <p className="mt-2 text-slate-600 text-sm leading-relaxed">{result.description}</p>
+                </div>
+              </div>
 
-          {/* Card Body */}
-          <div className="p-6 sm:p-8 space-y-6">
-            {/* Eligibility & Benefits */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
-                <h3 className="font-bold text-slate-900 text-sm tracking-wide uppercase flex items-center gap-2 mb-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  Eligibility Criteria
+              <div className="mt-6 pt-6 border-t border-amber-200/60 bg-white p-5 rounded-2xl">
+                <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2 mb-2">
+                  <HelpCircle className="w-4 h-4 text-blue-600" />
+                  Suggested Topics to Ask:
                 </h3>
-                <p className="text-slate-600 text-sm leading-relaxed">{result.eligibility}</p>
+                <p className="text-slate-600 text-sm leading-relaxed">{result.howToApply}</p>
               </div>
 
-              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
-                <h3 className="font-bold text-slate-900 text-sm tracking-wide uppercase flex items-center gap-2 mb-2">
-                  <Sparkles className="w-4 h-4 text-blue-600" />
-                  Key Benefits
-                </h3>
-                <p className="text-slate-600 text-sm leading-relaxed">{result.benefits}</p>
-              </div>
-            </div>
-
-            {/* Documents Required */}
-            <div>
-              <h3 className="font-bold text-slate-900 text-sm tracking-wide uppercase flex items-center gap-2 mb-3">
-                <FileText className="w-4 h-4 text-amber-600" />
-                Required Documents
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {result.documentsRequired && result.documentsRequired.length > 0 ? (
-                  result.documentsRequired.map((doc, idx) => (
-                    <span key={idx} className="bg-amber-50 text-amber-800 px-3 py-1.5 rounded-xl text-xs font-medium border border-amber-100">
-                      {doc}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-sm text-slate-500">None specified.</span>
-                )}
+              <div className="mt-6 flex justify-end">
+                <a
+                  href={result.officialUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs px-4 py-2.5 rounded-xl transition-all"
+                >
+                  Visit India National Portal
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
               </div>
             </div>
-
-            {/* How to Apply */}
-            <div className="border-t border-slate-100 pt-6">
-              <h3 className="font-bold text-slate-900 text-sm tracking-wide uppercase flex items-center gap-2 mb-3">
-                <Send className="w-4 h-4 text-indigo-600" />
-                How to Apply / Steps
-              </h3>
-              <div className="text-slate-600 text-sm leading-relaxed whitespace-pre-line bg-slate-50 p-5 rounded-2xl border border-slate-100 font-sans">
-                {result.howToApply}
+          ) : (
+            /* Valid Scheme / Service Rendering */
+            <>
+              {/* Card Header */}
+              <div className="bg-gradient-to-br from-slate-900 to-slate-850 p-6 sm:p-8 text-white relative">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-blue-200 uppercase tracking-wider mb-3">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  {result.category || "Civic Service"}
+                </span>
+                <h2 className="text-2xl font-bold sm:text-3xl leading-tight">{result.title}</h2>
+                <p className="mt-3 text-slate-300 font-normal leading-relaxed text-sm sm:text-base">
+                  {result.description}
+                </p>
               </div>
-            </div>
-          </div>
 
-          {/* Card Footer */}
-          <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <span className="text-xs text-slate-400">
-              Disclaimer: AI-generated guidance. Always verify on official portals.
-            </span>
-            <a
-              href={result.officialUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs px-4 py-2.5 rounded-xl transition-all shadow-md shadow-blue-500/10"
-            >
-              Go to Official Website
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          </div>
+              {/* Card Body */}
+              <div className="p-6 sm:p-8 space-y-6">
+                {/* Eligibility & Benefits */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                    <h3 className="font-bold text-slate-900 text-sm tracking-wide uppercase flex items-center gap-2 mb-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      Eligibility Criteria
+                    </h3>
+                    <p className="text-slate-600 text-sm leading-relaxed">{result.eligibility}</p>
+                  </div>
+
+                  <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                    <h3 className="font-bold text-slate-900 text-sm tracking-wide uppercase flex items-center gap-2 mb-2">
+                      <Sparkles className="w-4 h-4 text-blue-600" />
+                      Key Benefits
+                    </h3>
+                    <p className="text-slate-600 text-sm leading-relaxed">{result.benefits}</p>
+                  </div>
+                </div>
+
+                {/* Documents Required */}
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm tracking-wide uppercase flex items-center gap-2 mb-3">
+                    <FileText className="w-4 h-4 text-amber-600" />
+                    Required Documents
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {result.documentsRequired && result.documentsRequired.length > 0 ? (
+                      result.documentsRequired.map((doc, idx) => (
+                        <span key={idx} className="bg-amber-50 text-amber-800 px-3 py-1.5 rounded-xl text-xs font-medium border border-amber-100">
+                          {doc}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-sm text-slate-500">None specified.</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* How to Apply */}
+                <div className="border-t border-slate-100 pt-6">
+                  <h3 className="font-bold text-slate-900 text-sm tracking-wide uppercase flex items-center gap-2 mb-3">
+                    <Send className="w-4 h-4 text-indigo-600" />
+                    How to Apply / Steps
+                  </h3>
+                  <div className="text-slate-600 text-sm leading-relaxed whitespace-pre-line bg-slate-50 p-5 rounded-2xl border border-slate-100 font-sans">
+                    {result.howToApply}
+                  </div>
+                </div>
+              </div>
+
+              {/* Card Footer */}
+              <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <span className="text-xs text-slate-400">
+                  Disclaimer: AI-generated guidance. Always verify on official portals.
+                </span>
+                <a
+                  href={result.officialUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs px-4 py-2.5 rounded-xl transition-all shadow-md shadow-blue-500/10"
+                >
+                  Go to Official Website
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
