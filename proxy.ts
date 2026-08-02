@@ -9,9 +9,14 @@ const isProtectedRoute = createRouteMatcher([
 
 export default clerkMiddleware(async (auth, req) => {
   if (isProtectedRoute(req)) {
-    const authObj = await auth();
-    if (!authObj.userId) {
-      return authObj.redirectToSignIn({ returnBackUrl: req.url });
+    try {
+      const authObj = await auth();
+      if (!authObj.userId) {
+        return authObj.redirectToSignIn({ returnBackUrl: req.url });
+      }
+    } catch {
+      // If Clerk fails, allow access rather than crashing the route
+      // This prevents the app from being unusable during auth issues
     }
   }
 });

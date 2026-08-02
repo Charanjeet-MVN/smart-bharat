@@ -8,7 +8,7 @@ if (!apiKey) {
 const genAI = new GoogleGenerativeAI(apiKey || "placeholder-gemini-key-for-build");
 
 export const geminiModel = genAI.getGenerativeModel({
-  model: 'gemini-2.5-flash',
+  model: 'gemini-2.0-flash',
   safetySettings: [
     {
       category: HarmCategory.HARM_CATEGORY_HARASSMENT,
@@ -28,7 +28,7 @@ export const geminiModel = genAI.getGenerativeModel({
 })
 
 export const geminiVisionModel = genAI.getGenerativeModel({
-  model: 'gemini-2.5-flash',
+  model: 'gemini-2.0-flash',
   generationConfig: {
     temperature: 0.4,
     topP: 0.9,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Award, Search, Building2, HelpCircle, ArrowRight, ExternalLink } from "lucide-react";
+import { Award, Search, Building2, ExternalLink } from "lucide-react";
 
 const schemes = [
   {

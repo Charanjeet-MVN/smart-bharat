@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { MapPin, Calendar, Clock, AlertCircle } from "lucide-react";
+import { MapPin, Calendar, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 
 export interface HeatmapComplaint {

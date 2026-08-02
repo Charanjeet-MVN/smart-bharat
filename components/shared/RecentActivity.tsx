@@ -131,7 +131,7 @@ export function RecentActivity({ activities, isLoading = false }: RecentActivity
               let timeAgo = "Unknown time";
               try {
                 timeAgo = formatDistanceToNow(new Date(activity.updatedAt), { addSuffix: true });
-              } catch (e) {
+              } catch (_e) {
                 console.error("Invalid date:", activity.updatedAt);
               }
 

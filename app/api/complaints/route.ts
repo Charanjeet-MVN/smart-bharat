@@ -220,3 +220,41 @@ Extract details and respond with ONLY valid JSON (no markdown):
     return errorResponse("Failed to submit complaint. Please try again later.", 500);
   }
 }
+
+const UpdateComplaintSchema = z.object({
+  id: z.string().min(1, "Complaint ID is required"),
+  status: z.enum(["SUBMITTED", "ACKNOWLEDGED", "IN_PROGRESS", "RESOLVED", "REJECTED", "CLOSED"]),
+});
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+
+    const parseResult = UpdateComplaintSchema.safeParse(body);
+    if (!parseResult.success) {
+      return errorResponse(parseResult.error.issues[0].message, 400);
+    }
+
+    const { id, status } = parseResult.data;
+
+    const { data, error: updateError } = await supabase
+      .from("complaints")
+      .update({ status, updated_at: new Date().toISOString() })
+      .or(`id.eq.${id},tracking_id.eq.${id}`)
+      .select("id, tracking_id, title, status, updated_at");
+
+    if (updateError) {
+      console.error("[API] Supabase Update Error:", updateError);
+      return errorResponse("Failed to update complaint status.", 500);
+    }
+
+    if (!data || data.length === 0) {
+      return errorResponse("Complaint not found.", 404);
+    }
+
+    return standardResponse(data[0], { message: `Complaint status updated to ${status}.` });
+  } catch (error: unknown) {
+    console.error("[API] Patch complaint error:", error);
+    return errorResponse("Failed to update complaint. Please try again.", 500);
+  }
+}

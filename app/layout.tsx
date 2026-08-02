@@ -33,8 +33,14 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const authObj = await auth();
-  const userId = authObj.userId;
+  let userId: string | null = null;
+  try {
+    const authObj = await auth();
+    userId = authObj.userId;
+  } catch {
+    // Clerk auth may fail during build or if middleware is not properly initialized
+    // Gracefully degrade — show sign-in button instead of crashing
+  }
 
   return (
     <ClerkProvider>

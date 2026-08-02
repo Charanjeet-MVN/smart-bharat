@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Search, Filter, ListX, RefreshCw } from "lucide-react";
-import { TrackerCard, ComplaintData } from "./TrackerCard";
+import { TrackerCard } from "./TrackerCard";
 import { useComplaints } from "@/hooks/useComplaints";
 import { Skeleton } from "@/components/ui/skeleton";
 

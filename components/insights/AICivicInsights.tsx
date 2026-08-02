@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 import { motion, Variants } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -129,7 +129,7 @@ function generateRecommendations(
   topDept?: [string, number],
   avgDays?: number,
   trendPct?: number,
-  highPriority?: number
+  _highPriority?: number
 ) {
   const recs: { title: string; description: string; isImportant?: boolean }[] = [];
 

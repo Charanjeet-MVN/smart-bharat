@@ -2,8 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { Filter, Map as MapIcon, Loader2, RefreshCw, AlertCircle } from "lucide-react";
-import { HeatmapComplaint } from "./MapComponent";
+import { Map as MapIcon, Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { useComplaints } from "@/hooks/useComplaints";

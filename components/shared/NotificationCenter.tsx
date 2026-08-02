@@ -192,7 +192,7 @@ export function NotificationCenter() {
                       let timeAgo = "Just now";
                       try {
                         timeAgo = formatDistanceToNow(new Date(notification.timestamp), { addSuffix: true });
-                      } catch(e) {
+                      } catch(_e) {
                         // ignore
                       }
 

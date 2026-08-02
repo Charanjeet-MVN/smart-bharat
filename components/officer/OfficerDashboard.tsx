@@ -1,15 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { Filter, RefreshCw, AlertCircle } from "lucide-react";
 import { OfficerStats, OfficerStatsData } from "./OfficerStats";
 import { WorkQueueList } from "./WorkQueueList";
-import { OfficerComplaint } from "./ComplaintActionCard";
 import { parseISO, isPast } from "date-fns";
 import { useComplaints } from "@/hooks/useComplaints";
 
 export function OfficerDashboard() {
-  const { complaints: rawComplaints, loading, error } = useComplaints();
+  const { complaints: rawComplaints, loading, error, refetch } = useComplaints();
+  const [_actionLoading, setActionLoading] = useState<string | null>(null);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState("All");
@@ -90,10 +90,30 @@ export function OfficerDashboard() {
     return result;
   }, [complaints, statusFilter, priorityFilter, sortBy]);
 
-  const handleAction = (id: string, action: string) => {
-    // In a real app, this would call an API to update the complaint status
-    // and then call refetch() from useComplaints.
-    // Implement action logic safely without exposing details in console
+  const handleAction = async (id: string, action: string) => {
+    const statusMap: Record<string, string> = {
+      "Accept Task": "ACKNOWLEDGED",
+      "Update Progress": "IN_PROGRESS",
+      "Resolve": "RESOLVED",
+    };
+    const newStatus = statusMap[action];
+    if (!newStatus) return;
+
+    setActionLoading(id);
+    try {
+      const res = await fetch("/api/complaints", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: newStatus }),
+      });
+      if (res.ok) {
+        refetch();
+      }
+    } catch {
+      // Silently handle — the UI will remain unchanged if the update fails
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   if (error) {

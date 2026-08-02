@@ -1,24 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { useComplaints } from "@/hooks/useComplaints";
-import { ClipboardList, RefreshCw, MapPin, Calendar, Building2, ShieldAlert, Loader2 } from "lucide-react";
-
-interface Complaint {
-  id: string;
-  trackingId?: string;
-  tracking_id?: string;
-  title: string;
-  description: string;
-  category: string;
-  department: string;
-  status: string;
-  priority: string;
-  address?: string;
-  createdAt?: string;
-  created_at?: string;
-}
+import { ClipboardList, RefreshCw, MapPin, Calendar, Building2, Loader2 } from "lucide-react";
 
 export default function WallPage() {
   const { complaints, loading, error, refetch } = useComplaints();

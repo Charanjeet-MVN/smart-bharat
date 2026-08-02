@@ -1,5 +1,5 @@
 import React from "react";
-import { LineChart, LayoutDashboard } from "lucide-react";
+import { LineChart } from "lucide-react";
 import { AICivicInsights } from "@/components/insights/AICivicInsights";
 
 export default function InsightsPage() {
