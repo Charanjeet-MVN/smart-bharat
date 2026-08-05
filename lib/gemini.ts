@@ -1,14 +1,16 @@
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai'
 
-const apiKey = process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+const apiKey = process.env.OPENROUTER_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.NVIDIA_API_KEY || "";
 if (!apiKey) {
-  console.warn("WARNING: Neither GOOGLE_GEMINI_API_KEY nor GEMINI_API_KEY is defined in environment variables. Using placeholder for build phase.");
+  console.warn("WARNING: Neither OPENROUTER_API_KEY, GOOGLE_GEMINI_API_KEY nor GEMINI_API_KEY is defined in environment variables. Using placeholder for build phase.");
 }
 
-const genAI = new GoogleGenerativeAI(apiKey || "placeholder-gemini-key-for-build");
+const isOpenRouterKey = Boolean(apiKey && (apiKey.startsWith("sk-or-v1-") || apiKey.startsWith("sk-") || process.env.OPENROUTER_API_KEY));
 
-export const geminiModel = genAI.getGenerativeModel({
-  model: 'gemini-2.0-flash',
+const nativeGenAI = !isOpenRouterKey && apiKey ? new GoogleGenerativeAI(apiKey) : null;
+
+const nativeModel = nativeGenAI?.getGenerativeModel({
+  model: 'gemini-3.6-flash',
   safetySettings: [
     {
       category: HarmCategory.HARM_CATEGORY_HARASSMENT,
@@ -20,21 +22,116 @@ export const geminiModel = genAI.getGenerativeModel({
     },
   ],
   generationConfig: {
-    temperature: 0.7,
-    topP: 0.9,
-    topK: 40,
     maxOutputTokens: 2048,
   },
-})
+});
 
-export const geminiVisionModel = genAI.getGenerativeModel({
-  model: 'gemini-2.0-flash',
+const nativeVisionModel = nativeGenAI?.getGenerativeModel({
+  model: 'gemini-3.6-flash',
   generationConfig: {
-    temperature: 0.4,
-    topP: 0.9,
     maxOutputTokens: 1024,
   },
-})
+});
+
+async function callOpenRouter(messages: Array<{ role: string; content: unknown }>, maxTokens = 2048) {
+  if (!apiKey) {
+    throw new Error("No valid AI API Key configured.");
+  }
+
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://smartbharat.gov.in",
+      "X-Title": "Smart Bharat"
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages,
+      max_tokens: maxTokens,
+      temperature: 0.7
+    })
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`OpenRouter API call failed (HTTP ${res.status}): ${errorText}`);
+  }
+
+  const data = await res.json();
+  const textContent = data.choices?.[0]?.message?.content || "";
+
+  return {
+    response: {
+      text: () => textContent
+    }
+  };
+}
+
+export const geminiModel = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async generateContent(promptInput: any) {
+    if (isOpenRouterKey || !nativeModel) {
+      let promptText = "";
+      if (typeof promptInput === "string") {
+        promptText = promptInput;
+      } else if (Array.isArray(promptInput)) {
+        promptText = promptInput.map(p => (typeof p === "string" ? p : p?.text || "")).join("\n");
+      }
+      return callOpenRouter([{ role: "user", content: promptText }], 2048);
+    }
+    return nativeModel.generateContent(promptInput);
+  },
+
+  startChat(options: { history?: Array<{ role: string; parts: Array<{ text: string }> }> }) {
+    if (isOpenRouterKey || !nativeModel) {
+      const historyMessages = (options.history || []).map(h => ({
+        role: h.role === "model" ? "assistant" : "user",
+        content: h.parts?.map(p => p.text).join("\n") || ""
+      }));
+
+      return {
+        async sendMessage(message: string) {
+          const messages = [
+            ...historyMessages,
+            { role: "user", content: message }
+          ];
+          return callOpenRouter(messages, 2048);
+        }
+      };
+    }
+    return nativeModel.startChat(options);
+  }
+};
+
+export const geminiVisionModel = {
+  async generateContent(parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }>) {
+    if (isOpenRouterKey || !nativeVisionModel) {
+      let promptText = "";
+      let imageObj: { mimeType: string; data: string } | null = null;
+
+      for (const p of parts) {
+        if (p.text) promptText += p.text + "\n";
+        if (p.inlineData) imageObj = p.inlineData;
+      }
+
+      const contentPayload: unknown[] = [{ type: "text", text: promptText }];
+      if (imageObj) {
+        contentPayload.push({
+          type: "image_url",
+          image_url: {
+            url: `data:${imageObj.mimeType};base64,${imageObj.data}`
+          }
+        });
+      }
+
+      return callOpenRouter([{ role: "user", content: contentPayload }], 1024);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return nativeVisionModel.generateContent(parts as any);
+  }
+};
 
 export const CIVIC_SYSTEM_PROMPT = `You are SmartSeva, an AI Civic Copilot built for Smart Bharat - the official AI-powered citizen services platform of India.
 
@@ -62,7 +159,7 @@ RESPONSE FORMAT:
 - Always end with a helpful next action
 - Keep responses concise but complete
 
-Remember: You are representing the government of India. Be professional, accurate, and genuinely helpful.`
+Remember: You are representing the government of India. Be professional, accurate, and genuinely helpful.`;
 
 export async function generateCivicResponse(
   userMessage: string,
@@ -137,7 +234,8 @@ Respond ONLY with valid JSON, no markdown or extra text.`
 
   const text = result.response.text()
   try {
-    return JSON.parse(text)
+    const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(cleaned)
   } catch {
     return {
       issueType: 'Civic Issue',
@@ -197,7 +295,7 @@ Include only schemes where this person is genuinely eligible. Return up to 10 sc
 
   const result = await geminiModel.generateContent(prompt)
   const text = result.response.text()
-  
+
   try {
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
     return JSON.parse(cleaned)
@@ -236,7 +334,7 @@ Respond ONLY with valid JSON.`
 
   const result = await geminiModel.generateContent(prompt)
   const text = result.response.text()
-  
+
   try {
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
     return JSON.parse(cleaned)
@@ -250,5 +348,44 @@ Respond ONLY with valid JSON.`
       documentType: 'Government Document',
       issuingAuthority: 'Government of India',
     }
+  }
+}
+
+export async function searchSchemes(query: string) {
+  const prompt = `You are an expert search engine for Indian Government Schemes and subsidies.
+A citizen has searched for: "${query}"
+
+Return a list of real, currently active Indian government schemes that match this query.
+If no schemes match or the query is irrelevant, return an empty array [].
+
+CRITICAL INSTRUCTION:
+Return ONLY a valid JSON array of up to 8 most relevant schemes. Each scheme must exactly match this shape:
+{
+  "name": "Scheme Name",
+  "ministry": "Responsible Ministry/Department",
+  "category": "Category (e.g. Agriculture, Health, Housing, Education, Finance)",
+  "description": "Clear factual summary of the scheme (2-3 sentences)",
+  "benefits": "Key financial or material benefits in one line",
+  "eligibility": "Specific eligibility criteria for Indian citizens",
+  "documents": "Comma-separated list of required documents (e.g. Aadhaar card, Bank account details)",
+  "websiteUrl": "Exact official government portal URL for this specific scheme"
+}
+
+Do not invent fake schemes. Do not wrap the JSON in Markdown formatting (no \`\`\`json). Return the raw JSON array ONLY.`;
+
+  const result = await geminiModel.generateContent(prompt);
+  const text = result.response.text();
+  
+  try {
+    let cleaned = text.trim();
+    cleaned = cleaned.replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/\s*```$/, "").trim();
+    const parsed = JSON.parse(cleaned);
+    if (Array.isArray(parsed)) {
+      return parsed.slice(0, 8); // Ensure max 8 items
+    }
+    return [];
+  } catch (err) {
+    console.error("[searchSchemes] JSON parse error:", err);
+    return [];
   }
 }

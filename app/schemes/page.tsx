@@ -1,9 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import { Award, Search, Building2, ExternalLink } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Award, Search, Building2, ExternalLink, Loader2 } from "lucide-react";
 
-const schemes = [
+export interface Scheme {
+  name: string;
+  ministry: string;
+  category: string;
+  description: string;
+  benefits: string;
+  eligibility: string;
+  documents: string;
+  websiteUrl: string;
+}
+
+const schemes: Scheme[] = [
   {
     name: 'PM Kisan Samman Nidhi',
     ministry: 'Ministry of Agriculture & Farmers Welfare',
@@ -78,13 +89,60 @@ const schemes = [
 
 export default function SchemesPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [aiSchemes, setAiSchemes] = useState<Scheme[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
 
-  const filteredSchemes = schemes.filter(
+  useEffect(() => {
+    if (searchTerm.length < 2) {
+      setAiSchemes([]);
+      setSearchError("");
+      setIsSearching(false);
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      setIsSearching(true);
+      setSearchError("");
+      try {
+        const res = await fetch("/api/schemes/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: searchTerm }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setAiSchemes(data.data || []);
+        } else {
+          setSearchError(data.error || "Failed to fetch AI schemes.");
+        }
+      } catch (_err) {
+        setSearchError("An error occurred during search.");
+      } finally {
+        setIsSearching(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
+
+  const localFilteredSchemes = schemes.filter(
     (scheme) =>
       scheme.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       scheme.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
       scheme.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Merge local and AI schemes, deduplicating by lowercase name
+  const mergedSchemes = [...localFilteredSchemes];
+  const existingNames = new Set(mergedSchemes.map(s => s.name.toLowerCase()));
+  
+  for (const aiScheme of aiSchemes) {
+    if (aiScheme.name && !existingNames.has(aiScheme.name.toLowerCase())) {
+      mergedSchemes.push(aiScheme);
+      existingNames.add(aiScheme.name.toLowerCase());
+    }
+  }
 
   return (
     <div className="max-w-4xl mx-auto py-8">
@@ -102,7 +160,11 @@ export default function SchemesPage() {
       {/* Search box */}
       <div className="relative max-w-md mx-auto mb-10">
         <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-          <Search className="w-5 h-5 text-slate-400" />
+          {isSearching ? (
+            <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+          ) : (
+            <Search className="w-5 h-5 text-slate-400" />
+          )}
         </span>
         <input
           type="text"
@@ -111,16 +173,21 @@ export default function SchemesPage() {
           placeholder="Search schemes (e.g. Kisan, Ujjwala, Health...)"
           className="w-full rounded-xl border border-slate-300 pl-10 pr-4 py-3 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm shadow-sm"
         />
+        {searchError && (
+          <div className="absolute top-full left-0 mt-2 w-full text-center">
+            <p className="text-xs text-red-500 font-medium bg-red-50 py-1 rounded-md border border-red-100">{searchError}</p>
+          </div>
+        )}
       </div>
 
       {/* Schemes list */}
       <div className="space-y-6">
-        {filteredSchemes.length === 0 ? (
+        {mergedSchemes.length === 0 && !isSearching ? (
           <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
             <p className="text-slate-500">No schemes match your search criteria.</p>
           </div>
         ) : (
-          filteredSchemes.map((scheme, idx) => (
+          mergedSchemes.map((scheme, idx) => (
             <div
               key={idx}
               className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow"

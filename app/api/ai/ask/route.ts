@@ -98,7 +98,7 @@ You must respond with ONLY valid JSON (no markdown):
     let rawText = "";
 
     try {
-      const result = await withRetry(() => geminiModel.generateContent(prompt), 1, 500);
+      const result = await withRetry(() => geminiModel.generateContent(prompt), 3, 500);
       rawText = result.response.text();
       console.info(`[STAGE 4: RAW GEMINI RESPONSE]\n${rawText}\n`);
     } catch (geminiError: unknown) {
@@ -107,11 +107,25 @@ You must respond with ONLY valid JSON (no markdown):
       console.warn(`Reason Fallback Executed: Gemini API error -> ${errorMsg}`);
 
       // Honest Error Response — Never fabricate fake scheme data when AI fails
+      let status: number;
+      let userError: string;
+
+      if (/429|quota|resource_exhausted/i.test(errorMsg)) {
+        status = 429;
+        userError = "AI service is temporarily unavailable due to API rate limits (HTTP 429 / Quota). Please try again later.";
+      } else if (/404|not found|is not found for api version|deprecated/i.test(errorMsg)) {
+        status = 502;
+        userError = "The AI model is currently unavailable or has been deprecated. Please contact support.";
+      } else {
+        status = 503;
+        userError = "AI service is temporarily unavailable. Please try again in a few moments.";
+      }
+
       return NextResponse.json({
         success: false,
-        error: "AI service is temporarily unavailable due to API rate limits (HTTP 429 / Quota). Please try again later.",
+        error: userError,
         fallbackReason: errorMsg
-      }, { status: 429 });
+      }, { status });
     }
 
     // 5. JSON Parser

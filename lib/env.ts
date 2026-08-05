@@ -5,10 +5,12 @@ const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, "Supabase Anon Key is required"),
   GOOGLE_GEMINI_API_KEY: z.string().min(1, "Google Gemini API Key is required").optional(),
   GEMINI_API_KEY: z.string().min(1, "Gemini API Key is required").optional(),
+  OPENROUTER_API_KEY: z.string().min(1, "OpenRouter API Key is required").optional(),
+  NVIDIA_API_KEY: z.string().min(1, "NVIDIA API Key is required").optional(),
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string().min(1, "Clerk Publishable Key is required"),
   CLERK_SECRET_KEY: z.string().min(1, "Clerk Secret Key is required"),
-}).refine((data) => data.GOOGLE_GEMINI_API_KEY || data.GEMINI_API_KEY, {
-  message: "Either GOOGLE_GEMINI_API_KEY or GEMINI_API_KEY must be provided",
+}).refine((data) => data.GOOGLE_GEMINI_API_KEY || data.GEMINI_API_KEY || data.OPENROUTER_API_KEY || data.NVIDIA_API_KEY, {
+  message: "An AI API key (GOOGLE_GEMINI_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY) must be provided",
 });
 
 const parseEnv = () => {

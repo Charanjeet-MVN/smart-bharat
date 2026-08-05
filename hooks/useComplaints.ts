@@ -13,7 +13,7 @@ export function useComplaints() {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch("/api/complaints");
+        const res = await fetch(`/api/complaints?t=${Date.now()}`, { cache: "no-store" });
         if (!res.ok) {
           throw new Error("Failed to load complaints");
         }
@@ -46,7 +46,7 @@ export function useComplaints() {
 
   const refetch = () => {
     setLoading(true);
-    fetch("/api/complaints")
+    fetch(`/api/complaints?t=${Date.now()}`, { cache: "no-store" })
       .then(res => {
         if (!res.ok) throw new Error("Failed to load complaints");
         return res.json();

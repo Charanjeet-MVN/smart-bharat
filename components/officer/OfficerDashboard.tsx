@@ -10,6 +10,7 @@ import { useComplaints } from "@/hooks/useComplaints";
 export function OfficerDashboard() {
   const { complaints: rawComplaints, loading, error, refetch } = useComplaints();
   const [_actionLoading, setActionLoading] = useState<string | null>(null);
+  const [overrideStatuses, setOverrideStatuses] = useState<Record<string, "Pending" | "In Progress" | "Resolved">>({});
 
   // Filters
   const [statusFilter, setStatusFilter] = useState("All");
@@ -20,7 +21,7 @@ export function OfficerDashboard() {
     return rawComplaints.map((c) => {
       const statusMap: Record<string, "Pending" | "In Progress" | "Resolved"> = {
         "SUBMITTED": "Pending",
-        "ACKNOWLEDGED": "Pending",
+        "ACKNOWLEDGED": "In Progress",
         "IN_PROGRESS": "In Progress",
         "RESOLVED": "Resolved",
         "REJECTED": "Resolved",
@@ -34,21 +35,22 @@ export function OfficerDashboard() {
       };
       const createdAt = c.created_at || new Date().toISOString();
       const dueDate = new Date(new Date(createdAt).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const complaintId = c.tracking_id || c.id;
 
       return {
-        id: c.tracking_id || c.id,
+        id: complaintId,
         title: c.title,
         citizenName: "Citizen",
         category: c.category,
         department: c.department,
         priority: priorityMap[c.priority] || "Medium",
-        status: statusMap[c.status] || "Pending",
+        status: overrideStatuses[complaintId] || statusMap[c.status] || "Pending",
         location: c.address || "Not specified",
         submissionDate: createdAt,
         dueDate: dueDate,
       };
     });
-  }, [rawComplaints]);
+  }, [rawComplaints, overrideStatuses]);
 
   const stats: OfficerStatsData = useMemo(() => {
     const pending = complaints.filter(c => c.status === "Pending").length;
@@ -99,6 +101,17 @@ export function OfficerDashboard() {
     const newStatus = statusMap[action];
     if (!newStatus) return;
 
+    const uiStatusMap: Record<string, "Pending" | "In Progress" | "Resolved"> = {
+      "ACKNOWLEDGED": "In Progress",
+      "IN_PROGRESS": "In Progress",
+      "RESOLVED": "Resolved"
+    };
+
+    const newUiStatus = uiStatusMap[newStatus];
+    if (newUiStatus) {
+      setOverrideStatuses(prev => ({ ...prev, [id]: newUiStatus }));
+    }
+
     setActionLoading(id);
     try {
       const res = await fetch("/api/complaints", {
@@ -110,7 +123,7 @@ export function OfficerDashboard() {
         refetch();
       }
     } catch {
-      // Silently handle — the UI will remain unchanged if the update fails
+      // Silently handle
     } finally {
       setActionLoading(null);
     }

@@ -11,7 +11,7 @@ const CreateComplaintSchema = z.object({
   forceCreate: z.boolean().optional().default(false),
 });
 
-const FALLBACK_DEMO_COMPLAINTS = [
+let FALLBACK_DEMO_COMPLAINTS = [
   {
     id: "demo-1",
     tracking_id: "COMP-100001",
@@ -186,7 +186,7 @@ export async function GET(request: NextRequest) {
       pagination: { total: count || complaints.length, page, limit }
     });
 
-    response.headers.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=59');
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     return response;
   } catch (error: unknown) {
     console.warn("[API] Fetch complaints exception, returning fallback demo complaints:", error);
@@ -351,19 +351,38 @@ export async function PATCH(request: NextRequest) {
     }
 
     const { id, status } = parseResult.data;
+    const now = new Date().toISOString();
 
-    const { data, error: updateError } = await supabase
-      .from("complaints")
-      .update({ status, updated_at: new Date().toISOString() })
-      .or(`id.eq.${id},tracking_id.eq.${id}`)
-      .select("id, tracking_id, title, status, updated_at");
-
-    if (updateError || !data || data.length === 0) {
-      if (updateError) console.warn("[API] Supabase Update Notice (serving fallback status):", updateError);
-      return standardResponse({ id, status, updated_at: new Date().toISOString() }, { message: `Complaint status updated to ${status}.` });
+    // 1. Try Supabase first
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    let query = supabase.from("complaints").update({ status, updated_at: now });
+    
+    if (isUuid) {
+      query = query.eq("id", id);
+    } else {
+      query = query.eq("tracking_id", id);
     }
 
-    return standardResponse(data[0], { message: `Complaint status updated to ${status}.` });
+    const { data, error: updateError } = await query.select("id, tracking_id, title, status, updated_at");
+
+    if (data && data.length > 0) {
+      console.info(`[API] PATCH success (Supabase): ${id} -> ${status}`);
+      return standardResponse(data[0], { message: `Complaint status updated to ${status}.` });
+    }
+
+    // 2. Supabase didn't find the row — update in-memory demo data so refetch reflects the change
+    if (updateError) console.warn("[API] Supabase Update Notice (serving fallback status):", updateError);
+
+    const demoComplaint = FALLBACK_DEMO_COMPLAINTS.find(
+      c => c.id === id || c.tracking_id === id
+    );
+    if (demoComplaint) {
+      demoComplaint.status = status;
+      demoComplaint.updated_at = now;
+      console.info(`[API] PATCH success (demo data): ${id} -> ${status}`);
+    }
+
+    return standardResponse({ id, status, updated_at: now }, { message: `Complaint status updated to ${status}.` });
   } catch (error: unknown) {
     console.error("[API] Patch complaint error:", error);
     return errorResponse("Failed to update complaint. Please try again.", 500);

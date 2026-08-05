@@ -120,6 +120,7 @@ export class LightweightCache<T> {
 
 // Singleton instances for shared caches across API routes (in-memory per serverless worker)
 export const aiAskCache = new LightweightCache<unknown>(3600); // 1 hour for generic questions
+export const schemesSearchCache = new LightweightCache<unknown>(3600); // 1 hour for scheme searches
 
 /**
  * Basic in-memory rate limiter using token bucket logic
@@ -155,6 +156,7 @@ export class RateLimiter {
 // Global rate limiters (in-memory limits for simplistic protection)
 export const askAiRateLimiter = new RateLimiter(5, 60); // 5 requests per minute
 export const submitComplaintRateLimiter = new RateLimiter(3, 60); // 3 requests per minute
+export const schemesSearchRateLimiter = new RateLimiter(10, 60); // 10 requests per minute
 
 /**
  * Sanitize untrusted user input using DOMPurify

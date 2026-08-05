@@ -95,7 +95,7 @@ export function ComplaintActionCard({ complaint, onAction }: { complaint: Office
           {complaint.status === "Pending" && (
             <>
               <button 
-                onClick={() => onAction(complaint.id, "Accept")}
+                onClick={() => onAction(complaint.id, "Accept Task")}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
               >
                 <CheckCircle2 className="w-4 h-4" /> Accept Task
@@ -118,7 +118,7 @@ export function ComplaintActionCard({ complaint, onAction }: { complaint: Office
                 <ImageIcon className="w-4 h-4" /> Images
               </button>
               <button 
-                onClick={() => onAction(complaint.id, "Mark Resolved")}
+                onClick={() => onAction(complaint.id, "Resolve")}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
               >
                 <CheckCircle2 className="w-4 h-4" /> Resolve
