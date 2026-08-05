@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Award, Search, Building2, ExternalLink, Loader2 } from "lucide-react";
+import { Award, Search, Building2, ExternalLink, Loader2, X } from "lucide-react";
 
 export interface Scheme {
   name: string;
@@ -95,8 +95,11 @@ export default function SchemesPage() {
 
   useEffect(() => {
     if (searchTerm.length < 2) {
+      /* eslint-disable-next-line react-hooks/set-state-in-effect */
       setAiSchemes([]);
+      /* eslint-disable-next-line react-hooks/set-state-in-effect */
       setSearchError("");
+      /* eslint-disable-next-line react-hooks/set-state-in-effect */
       setIsSearching(false);
       return;
     }
@@ -145,37 +148,55 @@ export default function SchemesPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-8">
-      {/* Intro */}
-      <div className="text-center mb-10">
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight sm:text-4xl flex items-center justify-center gap-3">
-          <Award className="w-9 h-9 text-[#FF9933]" />
-          Government Schemes Finder
+    <div className="max-w-4xl mx-auto py-6 sm:py-10 space-y-8">
+      {/* Intro Header */}
+      <div className="text-center space-y-4">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200/60 shadow-xs">
+          <Award className="w-3.5 h-3.5 text-orange-600" />
+          <span>Verified Central & State Benefits</span>
+        </div>
+        <h1 className="text-3xl font-black text-slate-900 tracking-tight sm:text-4xl lg:text-5xl flex items-center justify-center gap-3">
+          <Award className="w-10 h-10 text-[#FF9933] shrink-0" />
+          <span>Government Schemes Finder</span>
         </h1>
-        <p className="mt-4 text-base text-slate-500 max-w-lg mx-auto">
-          Explore key government schemes, subsidies, and citizen benefits. Use search to filter by name, category, or keyword.
+        <p className="text-base sm:text-lg text-slate-600 max-w-xl mx-auto leading-relaxed">
+          Search and discover eligible Indian government schemes, financial subsidies, and welfare benefits using real-time AI.
         </p>
       </div>
 
       {/* Search box */}
-      <div className="relative max-w-md mx-auto mb-10">
-        <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-          {isSearching ? (
-            <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
-          ) : (
-            <Search className="w-5 h-5 text-slate-400" />
+      <div className="relative max-w-xl mx-auto">
+        <div className="relative flex items-center">
+          <span className="absolute left-4 pointer-events-none text-slate-400">
+            {isSearching ? (
+              <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+            ) : (
+              <Search className="w-5 h-5 text-slate-400" />
+            )}
+          </span>
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search schemes (e.g. Kisan, Ujjwala, Farmer subsidy, Health...)"
+            className="w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-10 py-3.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm sm:text-base shadow-sm"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-3.5 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors"
+              title="Clear search"
+            >
+              <X className="w-4 h-4" />
+            </button>
           )}
-        </span>
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search schemes (e.g. Kisan, Ujjwala, Health...)"
-          className="w-full rounded-xl border border-slate-300 pl-10 pr-4 py-3 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm shadow-sm"
-        />
+        </div>
+        
         {searchError && (
-          <div className="absolute top-full left-0 mt-2 w-full text-center">
-            <p className="text-xs text-red-500 font-medium bg-red-50 py-1 rounded-md border border-red-100">{searchError}</p>
+          <div className="mt-2 text-center">
+            <p className="text-xs text-red-600 font-medium bg-red-50 py-1.5 px-3 rounded-xl border border-red-100 inline-block shadow-2xs">
+              {searchError}
+            </p>
           </div>
         )}
       </div>
@@ -183,51 +204,61 @@ export default function SchemesPage() {
       {/* Schemes list */}
       <div className="space-y-6">
         {mergedSchemes.length === 0 && !isSearching ? (
-          <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
-            <p className="text-slate-500">No schemes match your search criteria.</p>
+          <div className="text-center py-16 bg-white rounded-3xl border border-slate-200 shadow-2xs p-8">
+            <Award className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <p className="text-slate-700 font-bold text-lg">No schemes match your search criteria</p>
+            <p className="text-slate-500 text-sm mt-1">Try searching with broader keywords like &quot;farmer&quot;, &quot;housing&quot;, or &quot;women&quot;.</p>
           </div>
         ) : (
           mergedSchemes.map((scheme, idx) => (
             <div
               key={idx}
-              className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow"
+              className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-7 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 relative group overflow-hidden border-l-4 border-l-[#FF9933]"
             >
+              {/* Category & Ministry Header */}
               <div className="flex flex-wrap justify-between items-start gap-2 mb-3">
-                <span className="bg-blue-50 text-blue-800 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider">
+                <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border border-blue-100">
                   {scheme.category}
                 </span>
-                <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                  <Building2 className="w-3.5 h-3.5" />
+                <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100">
+                  <Building2 className="w-3.5 h-3.5 text-slate-400" />
                   {scheme.ministry}
                 </span>
               </div>
-              <h2 className="text-xl font-bold text-slate-900 mb-2">{scheme.name}</h2>
-              <p className="text-sm text-slate-650 mb-4 leading-relaxed">{scheme.description}</p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-slate-100 text-xs">
-                <div>
-                  <span className="text-slate-400 font-bold block uppercase tracking-wider mb-1">Benefits</span>
-                  <span className="text-slate-700 font-semibold">{scheme.benefits}</span>
+
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
+                {scheme.name}
+              </h2>
+              <p className="text-sm sm:text-base text-slate-600 mb-6 leading-relaxed">
+                {scheme.description}
+              </p>
+
+              {/* Grid details */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-5 border-t border-slate-100 text-xs">
+                <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
+                  <span className="text-slate-400 font-bold block uppercase tracking-wider text-[10px] mb-1">Key Benefits</span>
+                  <span className="text-slate-800 font-semibold leading-normal block">{scheme.benefits}</span>
                 </div>
-                <div>
-                  <span className="text-slate-400 font-bold block uppercase tracking-wider mb-1">Eligibility</span>
-                  <span className="text-slate-700 font-semibold">{scheme.eligibility}</span>
+                <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
+                  <span className="text-slate-400 font-bold block uppercase tracking-wider text-[10px] mb-1">Eligibility</span>
+                  <span className="text-slate-800 font-semibold leading-normal block">{scheme.eligibility}</span>
                 </div>
-                <div>
-                  <span className="text-slate-400 font-bold block uppercase tracking-wider mb-1">Required Documents</span>
-                  <span className="text-slate-700 font-semibold">{scheme.documents}</span>
+                <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
+                  <span className="text-slate-400 font-bold block uppercase tracking-wider text-[10px] mb-1">Required Documents</span>
+                  <span className="text-slate-800 font-semibold leading-normal block">{scheme.documents}</span>
                 </div>
               </div>
 
-              <div className="flex justify-end mt-4">
+              {/* External portal CTA */}
+              <div className="flex justify-end mt-5 pt-3 border-t border-slate-100/60">
                 <a
                   href={scheme.websiteUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 font-semibold text-xs transition-all"
+                  className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition-all shadow-xs"
                 >
                   Visit Official Portal
-                  <ExternalLink className="w-3 h-3" />
+                  <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>
             </div>

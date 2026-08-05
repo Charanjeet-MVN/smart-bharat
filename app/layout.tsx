@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import Link from "next/link";
-import { Sparkles, Bot, AlertTriangle, ClipboardList, Award, UserCircle, LineChart, Activity, Map, TrendingUp, Briefcase } from "lucide-react";
-import { NotificationCenter } from "@/components/shared/NotificationCenter";
-import { ClerkProvider, SignInButton, UserButton } from "@clerk/nextjs";
+import { HeaderNavigation } from "@/components/shared/HeaderNavigation";
+import { SmartBharatLogo } from "@/components/shared/SmartBharatLogo";
+import { ClerkProvider } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import "./globals.css";
 
@@ -14,9 +13,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Smart Bharat — AI Powered Civic Companion",
+  title: "Smart Bharat — Official AI Civic Companion & Government Platform",
   description:
-    "Smart Bharat is India's AI-powered civic companion. Access government services, report civic issues, and find schemes, powered by Gemini AI.",
+    "Smart Bharat is India's official AI-powered civic platform. Access government services, discover eligible schemes, and report/track public complaints.",
   keywords: [
     "smart bharat",
     "government services",
@@ -25,6 +24,7 @@ export const metadata: Metadata = {
     "india government",
     "scheme finder",
     "complaint tracker",
+    "AI civic assistant"
   ],
 };
 
@@ -38,120 +38,37 @@ export default async function RootLayout({
     const authObj = await auth();
     userId = authObj.userId;
   } catch {
-    // Clerk auth may fail during build or if middleware is not properly initialized
-    // Gracefully degrade — show sign-in button instead of crashing
+    // Graceful degradation for Clerk auth during static rendering
   }
 
   return (
     <ClerkProvider>
       <html lang="en" className={inter.variable}>
-        <body className="min-h-screen bg-[#f8fafc] font-inter antialiased flex flex-col">
-        {/* Header */}
-        <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 py-4">
-          <div className="max-w-6xl mx-auto flex items-center justify-between">
-            <Link href="/ask" className="flex items-center gap-3 group">
-              <div className="relative">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1e3a5f] to-[#2563eb] flex items-center justify-center shadow-lg transition-transform group-hover:scale-105">
-                  <Sparkles className="w-5 h-5 text-white" />
-                </div>
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#FF9933] rounded-full" />
-              </div>
-              <div>
-                <span className="font-bold text-[#1e3a5f] text-base leading-none block">Smart Bharat</span>
-                <p className="text-[10px] text-slate-500 leading-none mt-0.5">AI Civic Companion</p>
-              </div>
-            </Link>
+        <body className="min-h-screen bg-[#F8FAFC] font-inter antialiased flex flex-col selection:bg-blue-100 selection:text-blue-900">
+          {/* Top Bar Accent (Tricolor subtle gradient strip) */}
+          <div className="h-1 w-full bg-gradient-to-r from-[#FF9933] via-white to-[#138808]" />
 
-            <nav className="flex items-center gap-1 sm:gap-4">
-              <Link
-                href="/ask"
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-              >
-                <Bot className="w-4 h-4 text-blue-600" />
-                <span className="hidden sm:inline">AI Decoder</span>
-              </Link>
-              <Link
-                href="/schemes"
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-              >
-                <Award className="w-4 h-4 text-orange-500" />
-                <span className="hidden sm:inline">Schemes</span>
-              </Link>
-              <Link
-                href="/insights"
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-              >
-                <LineChart className="w-4 h-4 text-indigo-500" />
-                <span className="hidden sm:inline">Insights</span>
-              </Link>
-              <Link
-                href="/report"
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-              >
-                <AlertTriangle className="w-4 h-4 text-saffron text-[#FF9933]" />
-                <span className="hidden sm:inline">Report Issue</span>
-              </Link>
-              <Link
-                href="/wall"
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-              >
-                <ClipboardList className="w-4 h-4 text-green-600" />
-                <span className="hidden sm:inline">Wall</span>
-              </Link>
-              <Link
-                href="/track"
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-              >
-                <Activity className="w-4 h-4 text-pink-500" />
-                <span className="hidden sm:inline">Track</span>
-              </Link>
-              <Link
-                href="/heatmap"
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-              >
-                <Map className="w-4 h-4 text-emerald-500" />
-                <span className="hidden sm:inline">Heatmap</span>
-              </Link>
-              <Link
-                href="/performance"
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-              >
-                <TrendingUp className="w-4 h-4 text-purple-500" />
-                <span className="hidden sm:inline">Performance</span>
-              </Link>
-              <Link
-                href="/officer"
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-              >
-                <Briefcase className="w-4 h-4 text-blue-500" />
-                <span className="hidden sm:inline">Officer Desk</span>
-              </Link>
-              
-              <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block"></div>
-              
-              <NotificationCenter />
+          {/* Sticky Header Navigation with Dual Mode Switcher */}
+          <HeaderNavigation userId={userId} />
 
-              <div className="ml-2 flex items-center justify-center">
-                {userId ? (
-                  <UserButton />
-                ) : (
-                  <SignInButton mode="modal">
-                    <button className="flex items-center justify-center w-9 h-9 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition-colors" title="Citizen Login">
-                      <UserCircle className="w-5 h-5" />
-                    </button>
-                  </SignInButton>
-                )}
+          {/* Main Content */}
+          <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+            {children}
+          </main>
+
+          {/* Footer */}
+          <footer className="border-t border-slate-200 bg-white py-6 mt-12 text-center text-xs text-slate-500">
+            <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-3">
+              <div className="flex items-center gap-2">
+                <SmartBharatLogo showText={false} className="w-6 h-6" />
+                <span className="font-semibold text-slate-700">Smart Bharat</span>
+                <span>— Official AI Civic Platform of India</span>
               </div>
-            </nav>
-          </div>
-        </header>
-
-        {/* Content */}
-        <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6">
-          {children}
-        </main>
-      </body>
-    </html>
+              <p className="text-slate-400">Powered by Gemini AI • Built for Indian Citizens</p>
+            </div>
+          </footer>
+        </body>
+      </html>
     </ClerkProvider>
   );
 }

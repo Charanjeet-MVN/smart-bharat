@@ -11,7 +11,7 @@ const CreateComplaintSchema = z.object({
   forceCreate: z.boolean().optional().default(false),
 });
 
-let FALLBACK_DEMO_COMPLAINTS = [
+const FALLBACK_DEMO_COMPLAINTS = [
   {
     id: "demo-1",
     tracking_id: "COMP-100001",

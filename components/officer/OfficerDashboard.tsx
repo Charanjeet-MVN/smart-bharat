@@ -152,15 +152,15 @@ export function OfficerDashboard() {
       <OfficerStats stats={stats} />
 
       {/* Filter Bar */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between">
+      <div className="bg-white p-4 sm:p-5 rounded-3xl shadow-xs border border-slate-200/80 flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <div className="flex items-center gap-2 text-slate-500 font-medium text-sm mr-2">
-            <Filter className="w-4 h-4" /> Filters
+          <div className="flex items-center gap-2 text-slate-500 font-bold text-xs uppercase tracking-wider mr-1">
+            <Filter className="w-3.5 h-3.5 text-blue-600" /> Filters
           </div>
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-slate-50 min-w-[120px]"
+            className="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50/80 min-w-[130px] focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           >
             <option value="All">All Statuses</option>
             <option value="Pending">Pending</option>
@@ -171,7 +171,7 @@ export function OfficerDashboard() {
           <select
             value={priorityFilter}
             onChange={e => setPriorityFilter(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-slate-50 min-w-[120px]"
+            className="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50/80 min-w-[130px] focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           >
             <option value="All">All Priorities</option>
             <option value="High">High</option>
@@ -181,11 +181,11 @@ export function OfficerDashboard() {
         </div>
 
         <div className="flex items-center gap-2 w-full md:w-auto">
-          <span className="text-sm text-slate-500 font-medium whitespace-nowrap">Sort by:</span>
+          <span className="text-xs text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap">Sort by:</span>
           <select
             value={sortBy}
             onChange={e => setSortBy(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-slate-50 w-full md:w-auto"
+            className="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50/80 w-full md:w-auto focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           >
             <option value="Highest Priority">Highest Priority</option>
             <option value="Oldest First">Oldest First</option>
