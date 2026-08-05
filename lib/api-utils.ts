@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import DOMPurify from "isomorphic-dompurify";
 
 export interface ApiResponse<T = unknown> {
   success: boolean;
@@ -159,9 +158,21 @@ export const submitComplaintRateLimiter = new RateLimiter(3, 60); // 3 requests 
 export const schemesSearchRateLimiter = new RateLimiter(10, 60); // 10 requests per minute
 
 /**
- * Sanitize untrusted user input using DOMPurify
+ * Sanitize untrusted user input without jsdom dependency to ensure Vercel serverless compatibility
  */
 export function sanitizeInput(input: string): string {
   if (!input) return "";
-  return DOMPurify.sanitize(input, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }).trim();
+  return input
+    .replace(/<[^>]*>/g, "")
+    .replace(/[&<>"']/g, (m) => {
+      switch (m) {
+        case "&": return "&amp;";
+        case "<": return "&lt;";
+        case ">": return "&gt;";
+        case '"': return "&quot;";
+        case "'": return "&#39;";
+        default: return m;
+      }
+    })
+    .trim();
 }
