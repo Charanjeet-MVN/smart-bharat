@@ -265,8 +265,17 @@ Respond with ONLY valid JSON:
       }
     }
 
-    // 3. AI Classification
-    const prompt = `You are an AI Civic Assistant. A citizen has reported a civic issue:
+    // 3. AI Classification (with robust fallback if AI service times out or key missing)
+    let draft = {
+      title: trimmedDesc.length > 60 ? `${trimmedDesc.substring(0, 57)}...` : trimmedDesc,
+      description: trimmedDesc,
+      category: "Infrastructure",
+      department: "Municipal Corporation",
+      priority: "MEDIUM"
+    };
+
+    try {
+      const prompt = `You are an AI Civic Assistant. A citizen has reported a civic issue:
 Issue description: "${trimmedDesc}"
 
 Extract details and respond with ONLY valid JSON (no markdown):
@@ -278,25 +287,16 @@ Extract details and respond with ONLY valid JSON (no markdown):
   "description": "Clear summary without filler words."
 }`;
 
-    // Add retry wrapper for main AI extraction
-    const result = await withRetry(() => geminiModel.generateContent(prompt), 3, 1000);
-    const text = result.response.text();
-
-    let cleanedText = text.trim();
-    cleanedText = cleanedText.replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/\s*```$/, "").trim();
-
-    let draft;
-    try {
-      draft = JSON.parse(cleanedText);
-    } catch {
-      console.warn("[API] Failed to parse AI classification JSON, using fallback.");
-      draft = {
-        title: "Civic Issue Report",
-        description: trimmedDesc,
-        category: "Other",
-        department: "Municipal Corporation",
-        priority: "MEDIUM"
-      };
+      const result = await withRetry(() => geminiModel.generateContent(prompt), 2, 600);
+      const text = result.response.text();
+      let cleanedText = text.trim();
+      cleanedText = cleanedText.replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/\s*```$/, "").trim();
+      const parsedDraft = JSON.parse(cleanedText);
+      if (parsedDraft && parsedDraft.title) {
+        draft = parsedDraft;
+      }
+    } catch (aiError) {
+      console.warn("[API] AI classification notice (using fallback draft):", aiError);
     }
 
     // 4. Create record

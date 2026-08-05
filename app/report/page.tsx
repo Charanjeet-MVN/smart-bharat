@@ -40,6 +40,13 @@ export default function ReportPage() {
         body: JSON.stringify({ description: trimmedDesc, address: trimmedAddr, forceCreate }),
       });
 
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        const rawText = await res.text();
+        console.error("[ReportPage] API returned non-JSON response:", rawText);
+        throw new Error("Server communication error. Please try submitting again.");
+      }
+
       if (res.status === 409) {
         const data = await res.json();
         setDuplicateComplaint(data.duplicate);
