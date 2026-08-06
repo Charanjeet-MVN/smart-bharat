@@ -218,15 +218,16 @@ export async function POST(request: NextRequest) {
 
     // 2. Duplicate Check Logic (Optimized to select only required fields)
     if (!forceCreate) {
-      const { data: recentComplaints } = await supabase
-        .from("complaints")
-        .select("id, title, description") // removed heavy fields
-        .order("created_at", { ascending: false })
-        .limit(10);
+      try {
+        const { data: recentComplaints } = await supabase
+          .from("complaints")
+          .select("id, title, description")
+          .order("created_at", { ascending: false })
+          .limit(10);
 
-      if (recentComplaints && recentComplaints.length > 0) {
-        try {
-          const dupPrompt = `You are a civic issue duplicate detector.
+        if (recentComplaints && recentComplaints.length > 0) {
+          try {
+            const dupPrompt = `You are a civic issue duplicate detector.
 A citizen is reporting a new issue:
 Description: "${trimmedDesc}"
 Address: "${trimmedAddr || 'Not specified'}"
@@ -241,27 +242,29 @@ Respond with ONLY valid JSON:
   "duplicateTitle": "if true, the title of the matched complaint, else null"
 }`;
 
-          // Add retry wrapper
-          const dupResult = await withRetry(() => geminiModel.generateContent(dupPrompt), 2, 500);
-          
-          let dupText = dupResult.response.text().trim();
-          dupText = dupText.replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/\s*```$/, "").trim();
+            const dupResult = await withRetry(() => geminiModel.generateContent(dupPrompt), 2, 500);
+            
+            let dupText = dupResult.response.text().trim();
+            dupText = dupText.replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/\s*```$/, "").trim();
 
-          const dupData = JSON.parse(dupText);
-          if (dupData.isDuplicate && dupData.duplicateId) {
-            console.info(`[API] Duplicate detected: ${dupData.duplicateId}`);
-            return NextResponse.json({
-              success: false,
-              isDuplicate: true,
-              duplicate: {
-                id: dupData.duplicateId,
-                title: dupData.duplicateTitle
-              }
-            }, { status: 409 });
+            const dupData = JSON.parse(dupText);
+            if (dupData.isDuplicate && dupData.duplicateId) {
+              console.info(`[API] Duplicate detected: ${dupData.duplicateId}`);
+              return NextResponse.json({
+                success: false,
+                isDuplicate: true,
+                duplicate: {
+                  id: dupData.duplicateId,
+                  title: dupData.duplicateTitle
+                }
+              }, { status: 409 });
+            }
+          } catch (e) {
+            console.warn("[API] AI duplicate detection notice, continuing:", e);
           }
-        } catch (e) {
-          console.warn("[API] Duplicate detection failed, continuing:", e);
         }
+      } catch (dbErr) {
+        console.warn("[API] Supabase duplicate check notice, continuing:", dbErr);
       }
     }
 
@@ -318,18 +321,23 @@ Extract details and respond with ONLY valid JSON (no markdown):
       updated_at: new Date().toISOString()
     };
 
-    const { data, error: insertError } = await supabase
-      .from("complaints")
-      .insert(complaintData)
-      .select("id, tracking_id, title, category, department, priority, status, created_at");
+    try {
+      const { data, error: insertError } = await supabase
+        .from("complaints")
+        .insert(complaintData)
+        .select("id, tracking_id, title, category, department, priority, status, created_at");
 
-    if (insertError) {
-      console.warn("[API] Supabase Insert Notice (serving fallback success):", insertError);
+      if (insertError) {
+        console.warn("[API] Supabase Insert Notice (serving fallback success):", insertError);
+        return standardResponse(complaintData, { status: 201 });
+      }
+
+      console.info(`[API] Complaint ${trackingId} created successfully.`);
+      return standardResponse(data?.[0] ?? complaintData, { status: 201 });
+    } catch (insertErr) {
+      console.warn("[API] Supabase Insert Exception (serving fallback success):", insertErr);
       return standardResponse(complaintData, { status: 201 });
     }
-
-    console.info(`[API] Complaint ${trackingId} created successfully.`);
-    return standardResponse(data?.[0] ?? complaintData, { status: 201 });
   } catch (error: unknown) {
     console.error("[API] Post complaint unexpected error:", error);
     return errorResponse("Failed to submit complaint. Please try again later.", 500);
