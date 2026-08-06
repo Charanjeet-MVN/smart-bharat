@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchSchemes } from "@/lib/gemini";
 import { z } from "zod";
-import { standardResponse, errorResponse, withRetry, schemesSearchCache, sanitizeInput, schemesSearchRateLimiter } from "@/lib/api-utils";
-import crypto from "crypto";
+import { standardResponse, errorResponse, withRetry, schemesSearchCache, sanitizeInput, schemesSearchRateLimiter, simpleHash } from "@/lib/api-utils";
 
 const SearchSchema = z.object({
   query: z.string().min(2, "Search query must be at least 2 characters").max(200, "Search query is too long"),
@@ -33,7 +32,7 @@ export async function POST(request: NextRequest) {
     console.info(`-> Search Query Received: "${trimmedQuery}"`);
 
     // 2. Check Cache
-    const cacheKey = crypto.createHash('sha256').update(trimmedQuery.toLowerCase()).digest('hex');
+    const cacheKey = simpleHash(trimmedQuery.toLowerCase());
     const cachedResponse = schemesSearchCache.get(cacheKey);
     
     if (cachedResponse) {

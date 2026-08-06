@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { geminiModel } from "@/lib/gemini";
-import crypto from "crypto";
 import { z } from "zod";
 import { standardResponse, errorResponse, withRetry, sanitizeInput, submitComplaintRateLimiter } from "@/lib/api-utils";
 
@@ -304,7 +303,9 @@ Extract details and respond with ONLY valid JSON (no markdown):
 
     // 4. Create record
     const trackingId = `COMP-${Math.floor(100000 + Math.random() * 900000)}`;
-    const complaintId = crypto.randomUUID();
+    const complaintId = typeof globalThis.crypto?.randomUUID === "function" 
+      ? globalThis.crypto.randomUUID() 
+      : `complaint-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
     const complaintData = {
       id: complaintId,

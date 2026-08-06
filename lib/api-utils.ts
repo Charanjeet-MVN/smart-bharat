@@ -158,6 +158,19 @@ export const submitComplaintRateLimiter = new RateLimiter(3, 60); // 3 requests 
 export const schemesSearchRateLimiter = new RateLimiter(10, 60); // 10 requests per minute
 
 /**
+ * Web-compatible lightweight string hash helper for caching
+ */
+export function simpleHash(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash |= 0;
+  }
+  return "hash_" + Math.abs(hash).toString(36);
+}
+
+/**
  * Sanitize untrusted user input without jsdom dependency to ensure Vercel serverless compatibility
  */
 export function sanitizeInput(input: string): string {

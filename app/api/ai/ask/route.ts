@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { geminiModel } from "@/lib/gemini";
 import { z } from "zod";
-import { standardResponse, errorResponse, withRetry, aiAskCache, sanitizeInput, askAiRateLimiter } from "@/lib/api-utils";
-import crypto from "crypto";
+import { standardResponse, errorResponse, withRetry, aiAskCache, sanitizeInput, askAiRateLimiter, simpleHash } from "@/lib/api-utils";
 
 const AskSchema = z.object({
   question: z.string().min(3, "Question must be at least 3 characters").max(2000, "Question is too long (max 2000 characters)"),
@@ -26,7 +25,7 @@ export async function POST(request: NextRequest) {
   try {
     const ip = request.headers.get("x-forwarded-for") || "unknown";
     if (askAiRateLimiter.isRateLimited(ip)) {
-      console.warn("[STAGE 1 FAILED] Rate limited by IP token bucket");
+      console.warn("[STAGE 1: RATE LIMIT] Rate limited by IP token bucket");
       return errorResponse("Too many questions asked. Please wait a minute and try again.", 429);
     }
 
@@ -35,7 +34,7 @@ export async function POST(request: NextRequest) {
     // 1. Validation
     const parseResult = AskSchema.safeParse(body);
     if (!parseResult.success) {
-      console.warn("[STAGE 1 FAILED] Zod validation failed:", parseResult.error.issues[0].message);
+      console.warn("[STAGE 1: VALIDATION FAILED]", parseResult.error.issues[0].message);
       return errorResponse(parseResult.error.issues[0].message, 400);
     }
     
@@ -45,7 +44,7 @@ export async function POST(request: NextRequest) {
     console.info(`-> Question Received: "${trimmedQuestion}"`);
 
     // 2. Check Cache
-    const cacheKey = crypto.createHash('sha256').update(trimmedQuestion.toLowerCase()).digest('hex');
+    const cacheKey = simpleHash(trimmedQuestion.toLowerCase());
     const cachedResponse = aiAskCache.get(cacheKey);
     
     if (cachedResponse) {
